@@ -9,7 +9,7 @@ import type { Expense } from '@/lib/db/types'
 type ExpenseFormProps = {
   tenantId: string
   expense?: Expense
-  onSubmit?: (data: Omit<Expense, 'id' | 'tenant_id' | 'created_at' | 'updated_at' | 'created_by'> & { expenseId?: string }) => Promise<void>
+  onSubmit?: (data: Omit<Expense, 'id' | 'tenant_id' | 'created_at' | 'updated_at' | 'created_by'> & { expenseId: string }) => Promise<void>
   cancelUrl?: string
 }
 

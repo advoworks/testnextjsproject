@@ -25,7 +25,7 @@ export default async function TenantDetailPage({
   // Get tenant users
   const { data: users } = await supabase
     .from('tenant_users')
-    .select('id, email, full_name, role, created_at')
+    .select('*')
     .eq('tenant_id', id)
 
   return (

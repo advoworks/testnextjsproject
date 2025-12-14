@@ -3,8 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const supabase = await createClient()
   const {
     data: { user },
@@ -29,7 +30,7 @@ export async function POST(
   const { data: existingExpense } = await supabase
     .from('expenses')
     .select('id')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('tenant_id', tenantUser.tenant_id)
     .single()
 
@@ -64,7 +65,7 @@ export async function POST(
   const { data: expense, error: updateError } = await supabase
     .from('expenses')
     .update({ receipt_url: receiptUrl })
-    .eq('id', params.id)
+    .eq('id', id)
     .select()
     .single()
 

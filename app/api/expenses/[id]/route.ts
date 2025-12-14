@@ -3,8 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const supabase = await createClient()
   const {
     data: { user },
@@ -29,7 +30,7 @@ export async function GET(
   const { data: expense, error } = await supabase
     .from('expenses')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('tenant_id', tenantUser.tenant_id)
     .single()
 
@@ -46,8 +47,9 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const supabase = await createClient()
   const {
     data: { user },
@@ -72,7 +74,7 @@ export async function PUT(
   const { data: existingExpense } = await supabase
     .from('expenses')
     .select('id')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('tenant_id', tenantUser.tenant_id)
     .single()
 
@@ -92,7 +94,7 @@ export async function PUT(
   const { data: expense, error } = await supabase
     .from('expenses')
     .update(updateData)
-    .eq('id', params.id)
+    .eq('id', id)
     .select()
     .single()
 
@@ -105,8 +107,9 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const supabase = await createClient()
   const {
     data: { user },
@@ -131,7 +134,7 @@ export async function DELETE(
   const { data: existingExpense } = await supabase
     .from('expenses')
     .select('id')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('tenant_id', tenantUser.tenant_id)
     .single()
 
@@ -139,7 +142,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Expense not found' }, { status: 404 })
   }
 
-  const { error } = await supabase.from('expenses').delete().eq('id', params.id)
+  const { error } = await supabase.from('expenses').delete().eq('id', id)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
