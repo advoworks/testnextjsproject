@@ -45,6 +45,37 @@ export async function POST(request: Request) {
     )
   }
 
+  // Validate expense_date format (YYYY-MM-DD)
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+  if (!dateRegex.test(expense_date)) {
+    return NextResponse.json(
+      { 
+        error: `Invalid expense_date format. Expected YYYY-MM-DD (e.g., 2024-01-15), but received: "${expense_date}". Make sure expense_date contains only the date, not the description.` 
+      },
+      { status: 400 }
+    )
+  }
+
+  // Validate that expense_date is a valid date
+  const dateObj = new Date(expense_date)
+  if (isNaN(dateObj.getTime())) {
+    return NextResponse.json(
+      { 
+        error: `Invalid date: "${expense_date}". Please use format YYYY-MM-DD (e.g., 2024-01-15).` 
+      },
+      { status: 400 }
+    )
+  }
+
+  // Validate amount is a number
+  const parsedAmount = parseFloat(amount)
+  if (isNaN(parsedAmount) || parsedAmount <= 0) {
+    return NextResponse.json(
+      { error: `Invalid amount: "${amount}". Amount must be a positive number.` },
+      { status: 400 }
+    )
+  }
+
   // Use provided created_by if using service role key, otherwise use authenticated user id
   const createdById = authResult.isServiceRole 
     ? (created_by || null) // Allow N8N to specify created_by, or leave null
@@ -55,7 +86,7 @@ export async function POST(request: Request) {
     .insert({
       tenant_id: tenantId,
       description,
-      amount: parseFloat(amount),
+      amount: parsedAmount,
       expense_date,
       receipt_url: receipt_url || null,
       created_by: createdById,
