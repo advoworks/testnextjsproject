@@ -77,6 +77,11 @@ export default function TenantDetail({ tenant, users }: TenantDetailProps) {
                       {user.full_name || user.email}
                     </div>
                     <div className="text-sm text-zinc-600 dark:text-zinc-400">{user.email}</div>
+                    {user.mobile_number && (
+                      <div className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">
+                        📱 {user.mobile_number}
+                      </div>
+                    )}
                   </div>
                   <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300">
                     {user.role}

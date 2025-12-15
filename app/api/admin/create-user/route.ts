@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const { supabase } = authResult
 
   const body = await request.json()
-  const { email, password, fullName, tenantId } = body
+  const { email, password, fullName, tenantId, mobileNumber } = body
 
   if (!email || !password || !fullName || !tenantId) {
     return NextResponse.json(
@@ -43,6 +43,7 @@ export async function POST(request: Request) {
     email,
     full_name: fullName,
     role: 'owner',
+    mobile_number: mobileNumber || null,
   })
 
   if (userError) {

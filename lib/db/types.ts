@@ -21,6 +21,7 @@ export type TenantUser = {
   email: string
   full_name: string | null
   role: string
+  mobile_number: string | null
   created_at: string
   updated_at: string
 }

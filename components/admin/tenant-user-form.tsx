@@ -3,7 +3,7 @@
 import { useState } from 'react'
 
 type TenantUserFormProps = {
-  onSubmit: (data: { fullName: string; email: string; password: string }) => Promise<void>
+  onSubmit: (data: { fullName: string; email: string; password: string; mobileNumber?: string }) => Promise<void>
   onCancel: () => void
   loading?: boolean
   tenantEmail?: string
@@ -20,6 +20,7 @@ export default function TenantUserForm({
     email: tenantEmail || '',
     password: '',
     confirmPassword: '',
+    mobileNumber: '',
   })
   const [error, setError] = useState<string | null>(null)
 
@@ -28,7 +29,7 @@ export default function TenantUserForm({
     setError(null)
 
     if (!formData.fullName || !formData.email || !formData.password) {
-      setError('All fields are required')
+      setError('Full name, email, and password are required')
       return
     }
 
@@ -47,6 +48,7 @@ export default function TenantUserForm({
         fullName: formData.fullName,
         email: formData.email,
         password: formData.password,
+        mobileNumber: formData.mobileNumber || undefined,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create user')
@@ -120,6 +122,23 @@ export default function TenantUserForm({
           minLength={6}
           className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
         />
+      </div>
+
+      <div>
+        <label htmlFor="mobileNumber" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          Mobile Number
+        </label>
+        <input
+          id="mobileNumber"
+          type="tel"
+          value={formData.mobileNumber}
+          onChange={(e) => setFormData({ ...formData, mobileNumber: e.target.value })}
+          placeholder="+1234567890"
+          className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+        />
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          Optional: Used for WhatsApp verification (format: +1234567890)
+        </p>
       </div>
 
       <div className="flex gap-4">

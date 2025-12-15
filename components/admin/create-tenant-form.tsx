@@ -42,7 +42,7 @@ export default function CreateTenantForm() {
     setLoading(false)
   }
 
-  async function handleUserSubmit(data: { fullName: string; email: string; password: string }) {
+  async function handleUserSubmit(data: { fullName: string; email: string; password: string; mobileNumber?: string }) {
     if (!createdTenantId) return
 
     setLoading(true)
@@ -56,6 +56,7 @@ export default function CreateTenantForm() {
         password: data.password,
         fullName: data.fullName,
         tenantId: createdTenantId,
+        mobileNumber: data.mobileNumber,
       }),
     })
 
