@@ -1,37 +1,31 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { requireTenantForApi } from '@/lib/auth/utils'
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  
+  // Get tenant_id from query params if using service role key
+  const url = new URL(request.url)
+  const tenantIdFromQuery = url.searchParams.get('tenant_id')
+  const body = tenantIdFromQuery ? { tenant_id: tenantIdFromQuery } : undefined
 
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Support both service role key and cookie-based auth
+  const authResult = await requireTenantForApi(request, body)
+  if (authResult instanceof NextResponse) {
+    return authResult
   }
 
-  // Get tenant user
-  const { data: tenantUser } = await supabase
-    .from('tenant_users')
-    .select('tenant_id')
-    .eq('id', user.id)
-    .single()
+  const { supabase, tenantId } = authResult
 
-  if (!tenantUser) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
-  // Get expense
+  // Get expense and verify it belongs to tenant
   const { data: expense, error } = await supabase
     .from('expenses')
     .select('*')
     .eq('id', id)
-    .eq('tenant_id', tenantUser.tenant_id)
+    .eq('tenant_id', tenantId)
     .single()
 
   if (error) {
@@ -50,39 +44,28 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const body = await request.json()
 
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Support both service role key and cookie-based auth
+  const authResult = await requireTenantForApi(request, body)
+  if (authResult instanceof NextResponse) {
+    return authResult
   }
 
-  // Get tenant user
-  const { data: tenantUser } = await supabase
-    .from('tenant_users')
-    .select('tenant_id')
-    .eq('id', user.id)
-    .single()
-
-  if (!tenantUser) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const { supabase, tenantId } = authResult
 
   // Verify expense belongs to tenant
   const { data: existingExpense } = await supabase
     .from('expenses')
     .select('id')
     .eq('id', id)
-    .eq('tenant_id', tenantUser.tenant_id)
+    .eq('tenant_id', tenantId)
     .single()
 
   if (!existingExpense) {
     return NextResponse.json({ error: 'Expense not found' }, { status: 404 })
   }
 
-  const body = await request.json()
   const { description, amount, expense_date, receipt_url } = body
 
   const updateData: Record<string, unknown> = {}
@@ -110,32 +93,26 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
 
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Get tenant_id from query params if using service role key
+  const url = new URL(request.url)
+  const tenantIdFromQuery = url.searchParams.get('tenant_id')
+  const body = tenantIdFromQuery ? { tenant_id: tenantIdFromQuery } : undefined
+
+  // Support both service role key and cookie-based auth
+  const authResult = await requireTenantForApi(request, body)
+  if (authResult instanceof NextResponse) {
+    return authResult
   }
 
-  // Get tenant user
-  const { data: tenantUser } = await supabase
-    .from('tenant_users')
-    .select('tenant_id')
-    .eq('id', user.id)
-    .single()
-
-  if (!tenantUser) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const { supabase, tenantId } = authResult
 
   // Verify expense belongs to tenant
   const { data: existingExpense } = await supabase
     .from('expenses')
     .select('id')
     .eq('id', id)
-    .eq('tenant_id', tenantUser.tenant_id)
+    .eq('tenant_id', tenantId)
     .single()
 
   if (!existingExpense) {

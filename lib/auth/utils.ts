@@ -158,3 +158,84 @@ export async function requireAdminForApi(request: Request) {
   return { adminUser, supabase, isServiceRole: false }
 }
 
+/**
+ * API route version for tenant operations that works with:
+ * 1. Service role key in Authorization header (for N8N/automated tools)
+ *    - Requires tenant_id in request body
+ * 2. Cookie-based authentication (for browser requests)
+ *    - Gets tenant_id from authenticated user
+ * 
+ * Returns a NextResponse error if not authorized, instead of redirecting.
+ */
+export async function requireTenantForApi(request: Request, body?: { tenant_id?: string }) {
+  // First, try service role key authentication (for N8N)
+  const adminClientFromKey = validateServiceRoleKey(request)
+  if (adminClientFromKey) {
+    // Service role key is valid - require tenant_id in body
+    const tenantId = body?.tenant_id
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: 'tenant_id is required when using service role key authentication' },
+        { status: 400 }
+      )
+    }
+
+    // Verify tenant exists and is active
+    const { data: tenant, error: tenantError } = await adminClientFromKey
+      .from('tenants')
+      .select('id, is_active')
+      .eq('id', tenantId)
+      .single()
+
+    if (tenantError || !tenant) {
+      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
+    }
+
+    if (!tenant.is_active) {
+      return NextResponse.json({ error: 'Tenant is not active' }, { status: 403 })
+    }
+
+    return {
+      supabase: adminClientFromKey,
+      tenantId,
+      isServiceRole: true,
+      userId: null, // No specific user when using service role key
+    }
+  }
+
+  // Fall back to cookie-based authentication (for browser requests)
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Get tenant user
+  const { data: tenantUser } = await supabase
+    .from('tenant_users')
+    .select('tenant_id, tenant:tenants(is_active)')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (!tenantUser) {
+    return NextResponse.json({ error: 'Forbidden: Tenant user access required' }, { status: 403 })
+  }
+
+  // Check if tenant is active
+  // Note: When selecting specific fields with join, Supabase may return array
+  const tenant = Array.isArray(tenantUser.tenant) ? tenantUser.tenant[0] : tenantUser.tenant
+  if (tenant && !tenant.is_active) {
+    return NextResponse.json({ error: 'Tenant is not active' }, { status: 403 })
+  }
+
+  return {
+    supabase,
+    tenantId: tenantUser.tenant_id,
+    isServiceRole: false,
+    userId: user.id,
+  }
+}
+

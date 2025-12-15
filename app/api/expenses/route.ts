@@ -1,32 +1,20 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { requireTenantForApi } from '@/lib/auth/utils'
 
-export async function GET() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export async function GET(request: Request) {
+  // Support both service role key and cookie-based auth
+  const authResult = await requireTenantForApi(request)
+  if (authResult instanceof NextResponse) {
+    return authResult
   }
 
-  // Get tenant user
-  const { data: tenantUser } = await supabase
-    .from('tenant_users')
-    .select('tenant_id')
-    .eq('id', user.id)
-    .single()
-
-  if (!tenantUser) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const { supabase, tenantId } = authResult
 
   // Get expenses for tenant
   const { data: expenses, error } = await supabase
     .from('expenses')
     .select('*')
-    .eq('tenant_id', tenantUser.tenant_id)
+    .eq('tenant_id', tenantId)
     .order('expense_date', { ascending: false })
 
   if (error) {
@@ -37,28 +25,18 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  // Get tenant user
-  const { data: tenantUser } = await supabase
-    .from('tenant_users')
-    .select('tenant_id')
-    .eq('id', user.id)
-    .single()
-
-  if (!tenantUser) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
   const body = await request.json()
-  const { description, amount, expense_date, receipt_url } = body
+  
+  // Support both service role key and cookie-based auth
+  // Pass body to requireTenantForApi so it can check for tenant_id if using service role key
+  const authResult = await requireTenantForApi(request, body)
+  if (authResult instanceof NextResponse) {
+    return authResult
+  }
+
+  const { supabase, tenantId, userId } = authResult
+
+  const { description, amount, expense_date, receipt_url, created_by } = body
 
   if (!description || !amount || !expense_date) {
     return NextResponse.json(
@@ -67,15 +45,20 @@ export async function POST(request: Request) {
     )
   }
 
+  // Use provided created_by if using service role key, otherwise use authenticated user id
+  const createdById = authResult.isServiceRole 
+    ? (created_by || null) // Allow N8N to specify created_by, or leave null
+    : userId // Use authenticated user id for browser requests
+
   const { data: expense, error } = await supabase
     .from('expenses')
     .insert({
-      tenant_id: tenantUser.tenant_id,
+      tenant_id: tenantId,
       description,
       amount: parseFloat(amount),
       expense_date,
       receipt_url: receipt_url || null,
-      created_by: user.id,
+      created_by: createdById,
     })
     .select()
     .single()
