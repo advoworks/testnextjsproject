@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { requireAdmin } from '@/lib/auth/utils'
+import { requireAdminForApi } from '@/lib/auth/utils'
 
 export async function POST(request: Request) {
-  await requireAdmin()
-  const supabase = await createClient()
+  // Check admin authorization (supports both service role key and cookie-based auth)
+  const authResult = await requireAdminForApi(request)
+  if (authResult instanceof NextResponse) {
+    // Return error response if not authorized
+    return authResult
+  }
+  
+  const { supabase } = authResult
 
   const body = await request.json()
   const { name, email } = body
@@ -13,7 +18,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Name and email are required' }, { status: 400 })
   }
 
-  // Create tenant
+  // Create tenant using the authenticated supabase client
+  // If service role key was used, this bypasses RLS
+  // If cookie-based auth was used, RLS policies apply
   const { data: tenant, error: tenantError } = await supabase
     .from('tenants')
     .insert({
