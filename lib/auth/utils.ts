@@ -1,4 +1,4 @@
-import { createClient, createClientForApi, createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { NextResponse } from 'next/server'
 
@@ -100,13 +100,20 @@ function validateServiceRoleKey(request: Request) {
   const providedKey = authHeader.substring(7).trim()
   const expectedKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-  if (!expectedKey) {
+  // If service role key is not configured, skip this authentication method
+  if (!expectedKey || expectedKey.trim() === '') {
     return null
   }
 
   // Compare the provided key with the expected service role key
-  if (providedKey === expectedKey) {
-    return createAdminClient()
+  if (providedKey === expectedKey.trim()) {
+    try {
+      return createAdminClient()
+    } catch (error) {
+      // If creating admin client fails, return null to fall back to cookie auth
+      console.error('Failed to create admin client:', error)
+      return null
+    }
   }
 
   return null
@@ -129,7 +136,7 @@ export async function requireAdminForApi(request: Request) {
   }
 
   // Fall back to cookie-based authentication (for browser requests)
-  const supabase = await createClientForApi(request)
+  const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
