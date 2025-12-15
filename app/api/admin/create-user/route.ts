@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAdminForApi } from '@/lib/auth/utils'
+import { createAdminClient } from '@/lib/supabase/server'
 
 export async function POST(request: Request) {
   // Check admin authorization (supports both service role key and cookie-based auth)
@@ -8,8 +9,6 @@ export async function POST(request: Request) {
     // Return error response if not authorized
     return authResult
   }
-  
-  const { supabase } = authResult
 
   const body = await request.json()
   const { email, password, fullName, tenantId, mobileNumber } = body
@@ -21,9 +20,12 @@ export async function POST(request: Request) {
     )
   }
 
-  // Use the authenticated supabase client (which is an admin client if service role key was used)
-  // This allows us to create users and bypass RLS
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+  // Always use admin client for creating users (requires service role key)
+  // This is necessary because auth.admin.createUser() only works with service role key
+  const adminClient = createAdminClient()
+
+  // Create auth user using admin client (requires service role key)
+  const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
@@ -36,8 +38,8 @@ export async function POST(request: Request) {
     )
   }
 
-  // Create tenant user (bypasses RLS if service role key was used)
-  const { error: userError } = await supabase.from('tenant_users').insert({
+  // Create tenant user using admin client (bypasses RLS)
+  const { error: userError } = await adminClient.from('tenant_users').insert({
     id: authData.user.id,
     tenant_id: tenantId,
     email,
