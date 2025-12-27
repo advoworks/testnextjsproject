@@ -78,9 +78,15 @@ export default function ExpenseForm({ tenantId, expense, onSubmit, cancelUrl }: 
           .single()
 
         if (tenantUser) {
-          const tenantCurrency = Array.isArray(tenantUser.tenant) 
-            ? tenantUser.tenant[0]?.currency 
-            : tenantUser.tenant?.currency
+          // Handle Supabase join query type - tenant can be array or object
+          let tenantCurrency: string | null = null
+          if (tenantUser.tenant) {
+            if (Array.isArray(tenantUser.tenant)) {
+              tenantCurrency = tenantUser.tenant[0]?.currency || null
+            } else {
+              tenantCurrency = (tenantUser.tenant as { currency?: string | null })?.currency || null
+            }
+          }
           const effectiveCurrency = getEffectiveCurrency(tenantUser.currency, tenantCurrency)
           if (effectiveCurrency) {
             setFormData(prev => ({ ...prev, currency: effectiveCurrency }))
