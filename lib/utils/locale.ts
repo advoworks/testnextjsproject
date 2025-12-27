@@ -25,13 +25,13 @@ export function getEffectiveTimezone(
 /**
  * Gets the effective currency for a tenant user.
  * Returns tenant_user.currency if set, otherwise falls back to tenant.currency.
- * If neither is set, returns 'USD' as default.
+ * If neither is set, returns null (currency must be explicitly set).
  */
 export function getEffectiveCurrency(
   tenantUserCurrency: string | null,
   tenantCurrency: string | null
-): string {
-  return tenantUserCurrency || tenantCurrency || 'USD'
+): string | null {
+  return tenantUserCurrency || tenantCurrency || null
 }
 
 /**

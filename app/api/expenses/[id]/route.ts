@@ -66,13 +66,22 @@ export async function PUT(
     return NextResponse.json({ error: 'Expense not found' }, { status: 404 })
   }
 
-  const { description, amount, expense_date, receipt_url } = body
+  const { description, amount, expense_date, receipt_url, currency } = body
+
+  // Currency validation - if provided, it cannot be empty
+  if (currency !== undefined && !currency) {
+    return NextResponse.json(
+      { error: 'Currency cannot be empty. Please provide a valid ISO 4217 currency code.' },
+      { status: 400 }
+    )
+  }
 
   const updateData: Record<string, unknown> = {}
   if (description !== undefined) updateData.description = description
   if (amount !== undefined) updateData.amount = parseFloat(amount)
   if (expense_date !== undefined) updateData.expense_date = expense_date
   if (receipt_url !== undefined) updateData.receipt_url = receipt_url
+  if (currency !== undefined) updateData.currency = currency
 
   const { data: expense, error } = await supabase
     .from('expenses')

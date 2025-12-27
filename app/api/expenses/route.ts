@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireTenantForApi } from '@/lib/auth/utils'
+import { getEffectiveCurrency } from '@/lib/utils/locale'
 
 export async function GET(request: Request) {
   // Support both service role key and cookie-based auth
@@ -36,11 +37,19 @@ export async function POST(request: Request) {
 
   const { supabase, tenantId, userId } = authResult
 
-  const { description, amount, expense_date, receipt_url, created_by } = body
+  const { description, amount, expense_date, receipt_url, created_by, currency } = body
 
   if (!description || !amount || !expense_date) {
     return NextResponse.json(
       { error: 'Missing required fields: description, amount, expense_date' },
+      { status: 400 }
+    )
+  }
+
+  // Currency validation - if provided, validate it's not empty
+  if (currency !== undefined && !currency) {
+    return NextResponse.json(
+      { error: 'Currency cannot be empty. Please provide a valid ISO 4217 currency code.' },
       { status: 400 }
     )
   }
@@ -81,6 +90,32 @@ export async function POST(request: Request) {
     ? (created_by || null) // Allow N8N to specify created_by, or leave null
     : userId // Use authenticated user id for browser requests
 
+  // Determine currency: use provided currency, or fetch from user/tenant if not provided
+  let finalCurrency = currency || null
+  if (!finalCurrency && !authResult.isServiceRole && userId) {
+    // Fetch user and tenant currency for default
+    const { data: tenantUser } = await supabase
+      .from('tenant_users')
+      .select('currency, tenant:tenants(currency)')
+      .eq('id', userId)
+      .single()
+
+    if (tenantUser) {
+      const tenantCurrency = Array.isArray(tenantUser.tenant) 
+        ? tenantUser.tenant[0]?.currency 
+        : tenantUser.tenant?.currency
+      finalCurrency = getEffectiveCurrency(tenantUser.currency, tenantCurrency)
+    }
+  }
+
+  // Currency is required - return error if not set
+  if (!finalCurrency) {
+    return NextResponse.json(
+      { error: 'Currency is required. Please provide currency in the request or set your user/tenant currency preference.' },
+      { status: 400 }
+    )
+  }
+
   const { data: expense, error } = await supabase
     .from('expenses')
     .insert({
@@ -90,6 +125,7 @@ export async function POST(request: Request) {
       expense_date,
       receipt_url: receipt_url || null,
       created_by: createdById,
+      currency: finalCurrency,
     })
     .select()
     .single()

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { formatCurrency } from '@/lib/utils/locale'
 
 type Expense = {
   id: string
@@ -6,6 +7,7 @@ type Expense = {
   description: string
   expense_date: string
   receipt_url: string | null
+  currency: string
 }
 
 type ExpenseListProps = {
@@ -13,11 +15,8 @@ type ExpenseListProps = {
 }
 
 export default function ExpenseList({ expenses }: ExpenseListProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount)
+  const formatAmount = (amount: number, currency: string) => {
+    return formatCurrency(amount, currency)
   }
 
   const formatDate = (date: string) => {
@@ -53,6 +52,9 @@ export default function ExpenseList({ expenses }: ExpenseListProps) {
               Amount
             </th>
             <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              Currency
+            </th>
+            <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
               Receipt
             </th>
             <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
@@ -70,7 +72,10 @@ export default function ExpenseList({ expenses }: ExpenseListProps) {
                 {expense.description}
               </td>
               <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                {formatCurrency(expense.amount)}
+                {formatAmount(expense.amount, expense.currency)}
+              </td>
+              <td className="whitespace-nowrap px-6 py-4 text-center text-sm text-zinc-600 dark:text-zinc-400">
+                {expense.currency}
               </td>
               <td className="whitespace-nowrap px-6 py-4 text-center text-sm">
                 {expense.receipt_url ? (

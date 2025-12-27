@@ -39,7 +39,7 @@ export type Expense = {
   description: string
   expense_date: string
   receipt_url: string | null
-  currency: string | null
+  currency: string
   created_by: string | null
   created_at: string
   updated_at: string

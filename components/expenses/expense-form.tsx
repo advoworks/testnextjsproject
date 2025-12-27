@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import type { Expense } from '@/lib/db/types'
+import { COMMON_CURRENCIES, getEffectiveCurrency } from '@/lib/utils/locale'
 
 type ExpenseFormProps = {
   tenantId: string
@@ -20,6 +21,7 @@ export default function ExpenseForm({ tenantId, expense, onSubmit, cancelUrl }: 
     description: expense?.description || '',
     amount: expense?.amount.toString() || '',
     expense_date: expense?.expense_date || new Date().toISOString().split('T')[0],
+    currency: expense?.currency || '',
   })
   const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -55,7 +57,42 @@ export default function ExpenseForm({ tenantId, expense, onSubmit, cancelUrl }: 
         description: expense.description,
         amount: expense.amount.toString(),
         expense_date: expense.expense_date,
+        currency: expense.currency,
       })
+    } else {
+      // Fetch user and tenant currency for default
+      async function fetchDefaultCurrency() {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        if (!user) {
+          setError('Please log in to create an expense')
+          return
+        }
+
+        // Get tenant user with currency
+        const { data: tenantUser } = await supabase
+          .from('tenant_users')
+          .select('currency, tenant:tenants(currency)')
+          .eq('id', user.id)
+          .single()
+
+        if (tenantUser) {
+          const tenantCurrency = Array.isArray(tenantUser.tenant) 
+            ? tenantUser.tenant[0]?.currency 
+            : tenantUser.tenant?.currency
+          const effectiveCurrency = getEffectiveCurrency(tenantUser.currency, tenantCurrency)
+          if (effectiveCurrency) {
+            setFormData(prev => ({ ...prev, currency: effectiveCurrency }))
+          } else {
+            setError('Currency is required. Please set your currency preference in your profile or ensure your tenant has a currency set.')
+          }
+        } else {
+          setError('Unable to load user information. Please try again.')
+        }
+      }
+      
+      fetchDefaultCurrency()
     }
   }, [expense])
 
@@ -63,7 +100,7 @@ export default function ExpenseForm({ tenantId, expense, onSubmit, cancelUrl }: 
     e.preventDefault()
     setError(null)
 
-    if (!formData.description || !formData.amount) {
+    if (!formData.description || !formData.amount || !formData.currency) {
       setError('Please fill in all required fields')
       return
     }
@@ -103,7 +140,7 @@ export default function ExpenseForm({ tenantId, expense, onSubmit, cancelUrl }: 
           amount: parseFloat(formData.amount),
           expense_date: formData.expense_date,
           receipt_url: receiptUrl,
-          currency: expense.currency || null,
+          currency: formData.currency,
           expenseId: expense.id,
         })
       } catch (err) {
@@ -126,6 +163,7 @@ export default function ExpenseForm({ tenantId, expense, onSubmit, cancelUrl }: 
         amount: parseFloat(formData.amount),
         expense_date: formData.expense_date,
         receipt_url: receiptUrl,
+        currency: formData.currency,
       })
       .select()
       .single()
@@ -192,6 +230,31 @@ export default function ExpenseForm({ tenantId, expense, onSubmit, cancelUrl }: 
             className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
           />
         </div>
+      </div>
+
+      <div>
+        <label htmlFor="currency" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          Currency *
+        </label>
+        <select
+          id="currency"
+          value={formData.currency}
+          onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+          required
+          className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+        >
+          <option value="">Select a currency</option>
+          {COMMON_CURRENCIES.map((curr) => (
+            <option key={curr.value} value={curr.value}>
+              {curr.label}
+            </option>
+          ))}
+        </select>
+        {!isEditMode && (
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            Defaults to your currency preference or tenant currency
+          </p>
+        )}
       </div>
 
       <div>

@@ -1,16 +1,14 @@
 import Link from 'next/link'
 import type { Expense } from '@/lib/db/types'
+import { formatCurrency } from '@/lib/utils/locale'
 
 type ExpenseDetailProps = {
   expense: Expense
 }
 
 export default function ExpenseDetail({ expense }: ExpenseDetailProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount)
+  const formatAmount = (amount: number, currency: string) => {
+    return formatCurrency(amount, currency)
   }
 
   const formatDate = (date: string) => {
@@ -58,7 +56,10 @@ export default function ExpenseDetail({ expense }: ExpenseDetailProps) {
         </div>
         <div className="text-right">
           <div className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-            {formatCurrency(expense.amount)}
+            {formatAmount(expense.amount, expense.currency)}
+          </div>
+          <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            {expense.currency}
           </div>
         </div>
       </div>
@@ -66,6 +67,11 @@ export default function ExpenseDetail({ expense }: ExpenseDetailProps) {
       <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
         <h2 className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Description</h2>
         <p className="mt-2 text-sm text-zinc-900 dark:text-zinc-100">{expense.description}</p>
+      </div>
+
+      <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+        <h2 className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Currency</h2>
+        <p className="mt-2 text-sm text-zinc-900 dark:text-zinc-100">{expense.currency}</p>
       </div>
 
       {expense.receipt_url && (

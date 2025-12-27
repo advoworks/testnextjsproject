@@ -9,7 +9,7 @@ export default async function ExpensesPage() {
 
   const { data: expenses, error } = await supabase
     .from('expenses')
-    .select('id, amount, description, expense_date, receipt_url')
+    .select('id, amount, description, expense_date, receipt_url, currency')
     .eq('tenant_id', tenantUser.tenant_id)
     .order('expense_date', { ascending: false })
 
