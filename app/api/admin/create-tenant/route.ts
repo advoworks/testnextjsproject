@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const { supabase } = authResult
 
   const body = await request.json()
-  const { name, email } = body
+  const { name, email, country, timezone, currency } = body
 
   if (!name || !email) {
     return NextResponse.json({ error: 'Name and email are required' }, { status: 400 })
@@ -26,6 +26,9 @@ export async function POST(request: Request) {
     .insert({
       name,
       email,
+      country: country || null,
+      timezone: timezone || null,
+      currency: currency || null,
     })
     .select()
     .single()

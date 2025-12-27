@@ -103,6 +103,7 @@ export default function ExpenseForm({ tenantId, expense, onSubmit, cancelUrl }: 
           amount: parseFloat(formData.amount),
           expense_date: formData.expense_date,
           receipt_url: receiptUrl,
+          currency: expense.currency || null,
           expenseId: expense.id,
         })
       } catch (err) {

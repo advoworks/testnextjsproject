@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { COMMON_COUNTRIES, getCommonTimezones, COMMON_CURRENCIES } from '@/lib/utils/locale'
 
 type TenantUserFormProps = {
-  onSubmit: (data: { fullName: string; email: string; password: string; mobileNumber?: string }) => Promise<void>
+  onSubmit: (data: { fullName: string; email: string; password: string; mobileNumber?: string; country?: string; timezone?: string; currency?: string }) => Promise<void>
   onCancel: () => void
   loading?: boolean
   tenantEmail?: string
@@ -21,8 +22,14 @@ export default function TenantUserForm({
     password: '',
     confirmPassword: '',
     mobileNumber: '',
+    country: '',
+    timezone: '',
+    currency: '',
   })
   const [error, setError] = useState<string | null>(null)
+  
+  // Get timezones with current UTC offsets
+  const timezones = useMemo(() => getCommonTimezones(), [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -49,6 +56,9 @@ export default function TenantUserForm({
         email: formData.email,
         password: formData.password,
         mobileNumber: formData.mobileNumber || undefined,
+        country: formData.country || undefined,
+        timezone: formData.timezone || undefined,
+        currency: formData.currency || undefined,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create user')
@@ -138,6 +148,72 @@ export default function TenantUserForm({
         />
         <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
           Optional: Used for WhatsApp verification (format: +1234567890)
+        </p>
+      </div>
+
+      <div>
+        <label htmlFor="country" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          Country
+        </label>
+        <select
+          id="country"
+          value={formData.country}
+          onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+          className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+        >
+          <option value="">Select a country</option>
+          {COMMON_COUNTRIES.map((country) => (
+            <option key={country.value} value={country.value}>
+              {country.label}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          Optional: Falls back to tenant country if not set
+        </p>
+      </div>
+
+      <div>
+        <label htmlFor="timezone" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          Timezone
+        </label>
+        <select
+          id="timezone"
+          value={formData.timezone}
+          onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
+          className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+        >
+          <option value="">Select a timezone</option>
+          {timezones.map((tz) => (
+            <option key={tz.value} value={tz.value}>
+              {tz.label}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          Optional: Falls back to tenant timezone if not set
+        </p>
+      </div>
+
+      <div>
+        <label htmlFor="currency" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          Currency
+        </label>
+        <select
+          id="currency"
+          value={formData.currency}
+          onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+          className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+        >
+          <option value="">Select a currency</option>
+          {COMMON_CURRENCIES.map((curr) => (
+            <option key={curr.value} value={curr.value}>
+              {curr.label}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          Optional: Falls back to tenant currency if not set
         </p>
       </div>
 

@@ -59,6 +59,32 @@ export default function TenantDetail({ tenant, users }: TenantDetailProps) {
         <p className="mt-2 text-sm text-zinc-900 dark:text-zinc-100">{tenant.email}</p>
       </div>
 
+      {(tenant.country || tenant.timezone || tenant.currency) && (
+        <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+          <h2 className="text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-4">Locale Settings</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {tenant.country && (
+              <div>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">Country</p>
+                <p className="mt-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">{tenant.country}</p>
+              </div>
+            )}
+            {tenant.timezone && (
+              <div>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">Timezone</p>
+                <p className="mt-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">{tenant.timezone}</p>
+              </div>
+            )}
+            {tenant.currency && (
+              <div>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">Currency</p>
+                <p className="mt-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">{tenant.currency}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <div className="border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Users</h2>
@@ -72,7 +98,7 @@ export default function TenantDetail({ tenant, users }: TenantDetailProps) {
             users.map((user) => (
               <div key={user.id} className="px-6 py-4">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1">
                     <div className="font-medium text-zinc-900 dark:text-zinc-100">
                       {user.full_name || user.email}
                     </div>
@@ -80,6 +106,25 @@ export default function TenantDetail({ tenant, users }: TenantDetailProps) {
                     {user.mobile_number && (
                       <div className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">
                         📱 {user.mobile_number}
+                      </div>
+                    )}
+                    {(user.country || user.timezone || user.currency) && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {user.country && (
+                          <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
+                            🌍 {user.country}
+                          </span>
+                        )}
+                        {user.timezone && (
+                          <span className="inline-flex items-center rounded-full bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 dark:bg-purple-900/20 dark:text-purple-400">
+                            🕐 {user.timezone}
+                          </span>
+                        )}
+                        {user.currency && (
+                          <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 dark:bg-green-900/20 dark:text-green-400">
+                            💰 {user.currency}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>

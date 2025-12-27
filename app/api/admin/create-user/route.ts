@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { email, password, fullName, tenantId, mobileNumber } = body
+  const { email, password, fullName, tenantId, mobileNumber, country, timezone, currency } = body
 
   if (!email || !password || !fullName || !tenantId) {
     return NextResponse.json(
@@ -46,6 +46,9 @@ export async function POST(request: Request) {
     full_name: fullName,
     role: 'owner',
     mobile_number: mobileNumber || null,
+    country: country || null,
+    timezone: timezone || null,
+    currency: currency || null,
   })
 
   if (userError) {

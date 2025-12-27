@@ -25,6 +25,9 @@ export default function CreateTenantForm() {
       body: JSON.stringify({
         name: data.name,
         email: data.email,
+        country: data.country || null,
+        timezone: data.timezone || null,
+        currency: data.currency || null,
       }),
     })
 
@@ -42,7 +45,7 @@ export default function CreateTenantForm() {
     setLoading(false)
   }
 
-  async function handleUserSubmit(data: { fullName: string; email: string; password: string; mobileNumber?: string }) {
+  async function handleUserSubmit(data: { fullName: string; email: string; password: string; mobileNumber?: string; country?: string; timezone?: string; currency?: string }) {
     if (!createdTenantId) return
 
     setLoading(true)
@@ -57,6 +60,9 @@ export default function CreateTenantForm() {
         fullName: data.fullName,
         tenantId: createdTenantId,
         mobileNumber: data.mobileNumber,
+        country: data.country || null,
+        timezone: data.timezone || null,
+        currency: data.currency || null,
       }),
     })
 
