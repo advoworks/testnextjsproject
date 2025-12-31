@@ -31,12 +31,32 @@ export default function DashboardNav({ tenantUser }: DashboardNavProps) {
             <Link
               href="/expenses"
               className={`text-sm font-medium transition-colors ${
-                pathname === '/expenses'
+                pathname === '/expenses' || pathname?.startsWith('/expenses/')
                   ? 'text-zinc-900 dark:text-zinc-100'
                   : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'
               }`}
             >
               Expenses
+            </Link>
+            <Link
+              href="/invoices"
+              className={`text-sm font-medium transition-colors ${
+                pathname === '/invoices' || pathname?.startsWith('/invoices/')
+                  ? 'text-zinc-900 dark:text-zinc-100'
+                  : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'
+              }`}
+            >
+              Invoices
+            </Link>
+            <Link
+              href="/customers"
+              className={`text-sm font-medium transition-colors ${
+                pathname === '/customers' || pathname?.startsWith('/customers/')
+                  ? 'text-zinc-900 dark:text-zinc-100'
+                  : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'
+              }`}
+            >
+              Customers
             </Link>
           </div>
           <div className="flex items-center gap-4">

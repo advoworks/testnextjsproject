@@ -1,0 +1,234 @@
+import { NextResponse } from 'next/server'
+import { requireTenantForApi } from '@/lib/auth/utils'
+import { validateInvoice } from '@/lib/invoicing/validation'
+import { getEffectiveCurrency } from '@/lib/utils/locale'
+import type { InvoiceLineItem } from '@/lib/db/types'
+
+export async function GET(request: Request) {
+  const authResult = await requireTenantForApi(request)
+  if (authResult instanceof NextResponse) {
+    return authResult
+  }
+
+  const { supabase, tenantId } = authResult
+
+  // Parse query parameters
+  const { searchParams } = new URL(request.url)
+  const status = searchParams.get('status')
+  const customerId = searchParams.get('customer_id')
+  const startDate = searchParams.get('start_date')
+  const endDate = searchParams.get('end_date')
+
+  let query = supabase
+    .from('invoices')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .order('invoice_date', { ascending: false })
+
+  if (status) {
+    query = query.eq('status', status)
+  }
+
+  if (customerId) {
+    query = query.eq('customer_id', customerId)
+  }
+
+  if (startDate) {
+    query = query.gte('invoice_date', startDate)
+  }
+
+  if (endDate) {
+    query = query.lte('invoice_date', endDate)
+  }
+
+  const { data: invoices, error } = await query
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ invoices: invoices || [] })
+}
+
+export async function POST(request: Request) {
+  const body = await request.json()
+  const authResult = await requireTenantForApi(request, body)
+  if (authResult instanceof NextResponse) {
+    return authResult
+  }
+
+  const { supabase, tenantId, userId, isServiceRole } = authResult
+
+  const {
+    customer_id,
+    invoice_date,
+    due_date,
+    currency,
+    line_items,
+    notes,
+    terms,
+  } = body
+
+  // Validate required fields
+  if (!customer_id || !invoice_date || !currency || !line_items || line_items.length === 0) {
+    return NextResponse.json(
+      { error: 'Missing required fields: customer_id, invoice_date, currency, and at least one line_item' },
+      { status: 400 }
+    )
+  }
+
+  // Validate date format
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+  if (!dateRegex.test(invoice_date)) {
+    return NextResponse.json(
+      { error: 'Invalid invoice_date format. Expected YYYY-MM-DD' },
+      { status: 400 }
+    )
+  }
+
+  if (due_date && !dateRegex.test(due_date)) {
+    return NextResponse.json(
+      { error: 'Invalid due_date format. Expected YYYY-MM-DD' },
+      { status: 400 }
+    )
+  }
+
+  // Validate due_date >= invoice_date
+  if (due_date && new Date(due_date) < new Date(invoice_date)) {
+    return NextResponse.json(
+      { error: 'Due date must be greater than or equal to invoice date' },
+      { status: 400 }
+    )
+  }
+
+  // Determine currency
+  let finalCurrency = currency || null
+  if (!finalCurrency && !isServiceRole && userId) {
+    const { data: tenantUser } = await supabase
+      .from('tenant_users')
+      .select('currency, tenant:tenants(currency)')
+      .eq('id', userId)
+      .single()
+
+    if (tenantUser) {
+      let tenantCurrency: string | null = null
+      if (tenantUser.tenant) {
+        if (Array.isArray(tenantUser.tenant)) {
+          tenantCurrency = tenantUser.tenant[0]?.currency || null
+        } else {
+          tenantCurrency = (tenantUser.tenant as { currency?: string | null })?.currency || null
+        }
+      }
+      finalCurrency = getEffectiveCurrency(tenantUser.currency, tenantCurrency)
+    }
+  }
+
+  if (!finalCurrency) {
+    return NextResponse.json(
+      { error: 'Currency is required. Please provide currency in the request or set your user/tenant currency preference.' },
+      { status: 400 }
+    )
+  }
+
+  // Process line items
+  const processedLineItems: InvoiceLineItem[] = line_items.map((item: any, index: number) => {
+    const quantity = parseFloat(item.quantity) || 1
+    const unitPrice = parseFloat(item.unit_price) || 0
+    const lineTotal = quantity * unitPrice
+
+    return {
+      description: item.description || '',
+      quantity,
+      unit_price: unitPrice,
+      line_total: lineTotal,
+      sort_order: item.sort_order !== undefined ? item.sort_order : index,
+    }
+  })
+
+  // Calculate totals
+  const subtotal = processedLineItems.reduce((sum, item) => sum + item.line_total, 0)
+  const taxAmount = 0 // Placeholder for future tax support
+  const totalAmount = subtotal + taxAmount
+
+  // Validate invoice data
+  try {
+    validateInvoice(
+      {
+        customer_id,
+        invoice_date,
+        due_date,
+        currency: finalCurrency,
+        subtotal,
+        tax_amount: taxAmount,
+        total_amount: totalAmount,
+      },
+      processedLineItems
+    )
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Invalid invoice data' },
+      { status: 400 }
+    )
+  }
+
+  // Create invoice
+  const { data: invoice, error: invoiceError } = await supabase
+    .from('invoices')
+    .insert({
+      tenant_id: tenantId,
+      customer_id,
+      invoice_date,
+      due_date: due_date || null,
+      currency: finalCurrency,
+      status: 'draft',
+      subtotal,
+      tax_amount: taxAmount,
+      total_amount: totalAmount,
+      notes: notes || null,
+      terms: terms || null,
+      created_by: isServiceRole ? (body.created_by || null) : userId,
+    })
+    .select()
+    .single()
+
+  if (invoiceError || !invoice) {
+    return NextResponse.json({ error: invoiceError?.message || 'Failed to create invoice' }, { status: 500 })
+  }
+
+  // Create line items
+  const lineItemsToInsert = processedLineItems.map(item => ({
+    invoice_id: invoice.id,
+    description: item.description,
+    quantity: item.quantity,
+    unit_price: item.unit_price,
+    line_total: item.line_total,
+    sort_order: item.sort_order,
+  }))
+
+  const { error: lineItemsError } = await supabase
+    .from('invoice_line_items')
+    .insert(lineItemsToInsert)
+
+  if (lineItemsError) {
+    // Rollback: delete the invoice
+    await supabase.from('invoices').delete().eq('id', invoice.id)
+    return NextResponse.json({ error: `Failed to create line items: ${lineItemsError.message}` }, { status: 500 })
+  }
+
+  // Fetch complete invoice with line items
+  const { data: completeInvoice, error: fetchError } = await supabase
+    .from('invoices')
+    .select(`
+      *,
+      line_items:invoice_line_items(*)
+    `)
+    .eq('id', invoice.id)
+    .single()
+
+  if (fetchError) {
+    return NextResponse.json({ error: fetchError.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ invoice: completeInvoice }, { status: 201 })
+}
+
