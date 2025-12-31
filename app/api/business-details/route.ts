@@ -32,9 +32,10 @@ export async function PUT(request: Request) {
   const formData = await request.formData()
   const business_name = formData.get('business_name') as string
   const logo = formData.get('logo') as File | null
+  const tenant_id = formData.get('tenant_id') as string | null
   
-  // Create a body object for requireTenantForApi (it expects JSON-like structure)
-  const bodyForAuth = { business_name }
+  // Create a body object for requireTenantForApi (it expects tenant_id for service role key auth)
+  const bodyForAuth = tenant_id ? { tenant_id } : undefined
   const authResult = await requireTenantForApi(request, bodyForAuth)
   if (authResult instanceof NextResponse) {
     return authResult
