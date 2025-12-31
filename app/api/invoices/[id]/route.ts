@@ -55,7 +55,7 @@ export async function PUT(
   // Check if invoice exists and is a draft
   const { data: existingInvoice, error: fetchError } = await supabase
     .from('invoices')
-    .select('status')
+    .select('status, tax_amount, currency, notes, terms')
     .eq('id', id)
     .eq('tenant_id', tenantId)
     .single()

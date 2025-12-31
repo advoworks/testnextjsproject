@@ -25,18 +25,19 @@ export default function ReceiptForm() {
 
   useEffect(() => {
     if (invoiceId) {
+      const currentInvoiceId = invoiceId // TypeScript narrowing
       async function fetchInvoice() {
         const supabase = createClient()
         const { data } = await supabase
           .from('invoices')
           .select('*')
-          .eq('id', invoiceId)
+          .eq('id', currentInvoiceId)
           .single()
         if (data) {
           setInvoice(data as Invoice)
           setFormData(prev => ({ 
             ...prev, 
-            invoice_id: invoiceId,
+            invoice_id: currentInvoiceId,
             amount: data.total_amount.toString()
           }))
         }

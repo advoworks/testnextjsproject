@@ -23,16 +23,17 @@ export default function CreditNoteForm() {
 
   useEffect(() => {
     if (invoiceId) {
+      const currentInvoiceId = invoiceId // TypeScript narrowing
       async function fetchInvoice() {
         const supabase = createClient()
         const { data } = await supabase
           .from('invoices')
           .select('*')
-          .eq('id', invoiceId)
+          .eq('id', currentInvoiceId)
           .single()
         if (data) {
           setInvoice(data as Invoice)
-          setFormData(prev => ({ ...prev, invoice_id: invoiceId }))
+          setFormData(prev => ({ ...prev, invoice_id: currentInvoiceId }))
         }
       }
       fetchInvoice()

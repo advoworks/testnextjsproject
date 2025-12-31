@@ -34,7 +34,8 @@ export async function GET(
     const pdfBuffer = await generateInvoicePDF(id)
 
     // Return PDF with proper headers
-    return new NextResponse(pdfBuffer, {
+    // Convert Buffer to Uint8Array for NextResponse compatibility
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `inline; filename="invoice-${id}.pdf"`,
