@@ -52,7 +52,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  console.log(`[Invoice Creation] 🚀 POST /api/invoices called`)
   const body = await request.json()
+  console.log(`[Invoice Creation] 📝 Request body received:`, { customer_id: body.customer_id, invoice_date: body.invoice_date })
   const authResult = await requireTenantForApi(request, body)
   if (authResult instanceof NextResponse) {
     return authResult
@@ -227,37 +229,56 @@ export async function POST(request: Request) {
     .single()
 
   if (fetchError) {
+    console.error(`[Invoice Creation] Failed to fetch complete invoice: ${fetchError.message}`)
     return NextResponse.json({ error: fetchError.message }, { status: 500 })
   }
 
+  console.log(`[Invoice Creation] ✅ Invoice created successfully: ${invoice.id}`)
+  console.log(`[Invoice Creation] 📄 Starting PDF generation in background...`)
+
   // Generate and upload PDF (non-blocking - don't fail invoice creation if this fails)
-  // This runs asynchronously and updates the invoice with pdf_url when complete
-  console.log(`[Invoice Creation] Starting async PDF generation for invoice ${invoice.id}`)
-  ;(async () => {
-    console.log(`[Invoice Creation] Async PDF generation started for invoice ${invoice.id}`)
+  // Store the promise to prevent it from being garbage collected
+  const pdfGenerationPromise = (async () => {
+    console.log(`[Invoice Creation] 🔄 Async PDF generation STARTED for invoice ${invoice.id}`)
     try {
       const pdfUrl = await generateAndUploadInvoicePDF(invoice.id, supabase)
-      console.log(`[Invoice Creation] PDF generation completed, pdfUrl: ${pdfUrl ? 'generated' : 'null'}`)
+      console.log(`[Invoice Creation] ✅ PDF generation completed, pdfUrl: ${pdfUrl ? '✅ generated' : '❌ null'}`)
       if (pdfUrl) {
         // Update invoice with PDF URL
         try {
-          await supabase
+          const { error: updateError } = await supabase
             .from('invoices')
             .update({ pdf_url: pdfUrl })
             .eq('id', invoice.id)
-          console.log(`[Invoice Creation] PDF URL updated for invoice ${invoice.id}`)
+          
+          if (updateError) {
+            console.error(`[Invoice Creation] ❌ Failed to update PDF URL:`, updateError)
+          } else {
+            console.log(`[Invoice Creation] ✅ PDF URL updated successfully for invoice ${invoice.id}`)
+          }
         } catch (error) {
-          console.error(`[Invoice Creation] Failed to update PDF URL: ${error instanceof Error ? error.message : 'Unknown error'}`, error)
+          console.error(`[Invoice Creation] ❌ Exception updating PDF URL:`, error)
         }
       } else {
-        console.warn(`[Invoice Creation] PDF URL is null, not updating invoice ${invoice.id}`)
+        console.warn(`[Invoice Creation] ⚠️ PDF URL is null, not updating invoice ${invoice.id}`)
       }
     } catch (error) {
-      console.error(`[Invoice Creation] PDF generation failed for invoice ${invoice.id}: ${error instanceof Error ? error.message : 'Unknown error'}`, error)
-      // Don't throw - invoice creation succeeded, PDF generation is optional
+      console.error(`[Invoice Creation] ❌ PDF generation exception:`, error)
     }
   })()
+  
+  // Attach error handler to prevent unhandled promise rejection
+  pdfGenerationPromise.catch((error) => {
+    console.error(`[Invoice Creation] ❌ Unhandled promise rejection in PDF generation:`, error)
+  })
 
+  // Keep reference to prevent garbage collection (Next.js might terminate the context)
+  // Store it in a way that keeps it alive
+  if (typeof globalThis !== 'undefined') {
+    (globalThis as { __pendingPdfGeneration?: Promise<void> }).__pendingPdfGeneration = pdfGenerationPromise
+  }
+
+  console.log(`[Invoice Creation] 📤 Returning response for invoice ${invoice.id}`)
   return NextResponse.json({ invoice: completeInvoice }, { status: 201 })
 }
 
