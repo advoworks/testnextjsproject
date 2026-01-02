@@ -237,30 +237,31 @@ export async function POST(request: Request) {
   console.log(`[Invoice Creation] 📄 Starting PDF generation in background...`)
 
   // Generate and upload PDF (non-blocking - don't fail invoice creation if this fails)
-  // Store the promise to prevent it from being garbage collected
+  // pdf_url now stores the file path (e.g., "{tenant_id}/invoices/{invoice_id}.pdf")
+  // The PDF can be accessed via /api/invoices/[id]/pdf which respects RLS
   const pdfGenerationPromise = (async () => {
     console.log(`[Invoice Creation] 🔄 Async PDF generation STARTED for invoice ${invoice.id}`)
     try {
-      const pdfUrl = await generateAndUploadInvoicePDF(invoice.id, supabase)
-      console.log(`[Invoice Creation] ✅ PDF generation completed, pdfUrl: ${pdfUrl ? '✅ generated' : '❌ null'}`)
-      if (pdfUrl) {
-        // Update invoice with PDF URL
+      const pdfPath = await generateAndUploadInvoicePDF(invoice.id, supabase)
+      console.log(`[Invoice Creation] ✅ PDF generation completed, pdfPath: ${pdfPath ? '✅ generated' : '❌ null'}`)
+      if (pdfPath) {
+        // Update invoice with PDF file path (not a URL)
         try {
           const { error: updateError } = await supabase
             .from('invoices')
-            .update({ pdf_url: pdfUrl })
+            .update({ pdf_url: pdfPath })
             .eq('id', invoice.id)
           
           if (updateError) {
-            console.error(`[Invoice Creation] ❌ Failed to update PDF URL:`, updateError)
+            console.error(`[Invoice Creation] ❌ Failed to update PDF path:`, updateError)
           } else {
-            console.log(`[Invoice Creation] ✅ PDF URL updated successfully for invoice ${invoice.id}`)
+            console.log(`[Invoice Creation] ✅ PDF path updated successfully for invoice ${invoice.id}: ${pdfPath}`)
           }
         } catch (error) {
-          console.error(`[Invoice Creation] ❌ Exception updating PDF URL:`, error)
+          console.error(`[Invoice Creation] ❌ Exception updating PDF path:`, error)
         }
       } else {
-        console.warn(`[Invoice Creation] ⚠️ PDF URL is null, not updating invoice ${invoice.id}`)
+        console.warn(`[Invoice Creation] ⚠️ PDF path is null, not updating invoice ${invoice.id}`)
       }
     } catch (error) {
       console.error(`[Invoice Creation] ❌ PDF generation exception:`, error)

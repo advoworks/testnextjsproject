@@ -88,27 +88,19 @@ export default function InvoiceList({ invoices }: InvoiceListProps) {
                 {formatCurrency(invoice.total_amount, invoice.currency)}
               </td>
               <td className="whitespace-nowrap px-6 py-4 text-center">
-                {invoice.pdf_url ? (
-                  <a
-                    href={invoice.pdf_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                    title="View PDF"
-                  >
-                    📄
-                  </a>
-                ) : (
-                  <a
-                    href={`/api/invoices/${invoice.id}/pdf`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm font-medium text-zinc-600 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-300"
-                    title="Generate PDF"
-                  >
-                    ⏳
-                  </a>
-                )}
+                <a
+                  href={`/api/invoices/${invoice.id}/pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`text-sm font-medium ${
+                    invoice.pdf_url
+                      ? 'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300'
+                      : 'text-zinc-600 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-300'
+                  }`}
+                  title={invoice.pdf_url ? 'View PDF' : 'Generate PDF'}
+                >
+                  {invoice.pdf_url ? '📄' : '⏳'}
+                </a>
               </td>
             </tr>
           ))}

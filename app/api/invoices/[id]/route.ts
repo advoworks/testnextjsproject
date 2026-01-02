@@ -221,26 +221,27 @@ export async function PUT(
   }
 
   // Regenerate and upload PDF (non-blocking - don't fail update if this fails)
-  // This runs asynchronously and updates the invoice with pdf_url when complete
+  // pdf_url now stores the file path (e.g., "{tenant_id}/invoices/{invoice_id}.pdf")
+  // The PDF can be accessed via /api/invoices/[id]/pdf which respects RLS
   console.log(`[Invoice Update] Starting async PDF regeneration for invoice ${id}`)
   ;(async () => {
     console.log(`[Invoice Update] Async PDF regeneration started for invoice ${id}`)
     try {
-      const pdfUrl = await generateAndUploadInvoicePDF(id, supabase)
-      console.log(`[Invoice Update] PDF regeneration completed, pdfUrl: ${pdfUrl ? 'generated' : 'null'}`)
-      if (pdfUrl) {
-        // Update invoice with new PDF URL
+      const pdfPath = await generateAndUploadInvoicePDF(id, supabase)
+      console.log(`[Invoice Update] PDF regeneration completed, pdfPath: ${pdfPath ? 'generated' : 'null'}`)
+      if (pdfPath) {
+        // Update invoice with new PDF file path (not a URL)
         try {
           await supabase
             .from('invoices')
-            .update({ pdf_url: pdfUrl })
+            .update({ pdf_url: pdfPath })
             .eq('id', id)
-          console.log(`[Invoice Update] PDF URL updated for invoice ${id}`)
+          console.log(`[Invoice Update] PDF path updated for invoice ${id}: ${pdfPath}`)
         } catch (error) {
-          console.error(`[Invoice Update] Failed to update PDF URL: ${error instanceof Error ? error.message : 'Unknown error'}`, error)
+          console.error(`[Invoice Update] Failed to update PDF path: ${error instanceof Error ? error.message : 'Unknown error'}`, error)
         }
       } else {
-        console.warn(`[Invoice Update] PDF URL is null, not updating invoice ${id}`)
+        console.warn(`[Invoice Update] PDF path is null, not updating invoice ${id}`)
       }
     } catch (error) {
       console.error(`[Invoice Update] PDF regeneration failed for invoice ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`, error)

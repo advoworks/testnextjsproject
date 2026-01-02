@@ -3,11 +3,11 @@ import { generateInvoicePDF } from './invoice-pdf'
 
 /**
  * Generates PDF for an invoice and uploads it to Supabase Storage
- * Returns a signed URL for accessing the PDF (valid for 1 hour)
+ * Returns the storage file path (not a URL) for accessing the PDF via proxy endpoint
  * 
  * @param invoiceId - The invoice ID
  * @param supabaseClient - Authenticated Supabase client
- * @returns Promise<string | null> - Signed URL to the PDF, or null if generation/upload failed
+ * @returns Promise<string | null> - Storage file path (e.g., "{tenant_id}/invoices/{invoice_id}.pdf"), or null if generation/upload failed
  */
 export async function generateAndUploadInvoicePDF(
   invoiceId: string,
@@ -51,20 +51,10 @@ export async function generateAndUploadInvoicePDF(
       return null
     }
 
-    console.log(`[PDF Storage] Upload successful, generating signed URL...`)
-
-    // Generate signed URL (valid for 1 hour)
-    const { data: signedUrlData, error: signedUrlError } = await supabaseClient.storage
-      .from('invoices')
-      .createSignedUrl(filePath, 3600) // 1 hour = 3600 seconds
-
-    if (signedUrlError || !signedUrlData) {
-      console.error(`[PDF Storage] Failed to generate signed URL:`, signedUrlError)
-      return null
-    }
-
-    console.log(`[PDF Storage] Signed URL generated successfully: ${signedUrlData.signedUrl.substring(0, 50)}...`)
-    return signedUrlData.signedUrl
+    console.log(`[PDF Storage] Upload successful, file path: ${filePath}`)
+    // Return the file path instead of a signed URL
+    // The path will be used to access the file via the proxy endpoint which respects RLS
+    return filePath
   } catch (error) {
     // Log error but don't throw - PDF generation is non-blocking
     console.error(`[PDF Storage] Unexpected error:`, error)

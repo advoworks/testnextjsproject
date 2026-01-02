@@ -292,31 +292,23 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
       <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
         <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">PDF Document</h2>
         <div className="mt-4">
-          {invoice.pdf_url ? (
-            <a
-              href={invoice.pdf_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-            >
-              <span>📄</span>
-              View PDF
-            </a>
-          ) : (
-            <div className="flex items-center gap-4">
-              <a
-                href={`/api/invoices/${invoice.id}/pdf`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg bg-zinc-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
-              >
-                <span>📄</span>
-                Generate PDF
-              </a>
-              <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                PDF will be generated on-demand
-              </span>
-            </div>
+          <a
+            href={`/api/invoices/${invoice.id}/pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors ${
+              invoice.pdf_url
+                ? 'bg-blue-600 hover:bg-blue-700'
+                : 'bg-zinc-600 hover:bg-zinc-700'
+            }`}
+          >
+            <span>📄</span>
+            {invoice.pdf_url ? 'View PDF' : 'Generate PDF'}
+          </a>
+          {!invoice.pdf_url && (
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              PDF will be generated on-demand and cached for future access
+            </p>
           )}
         </div>
       </div>
