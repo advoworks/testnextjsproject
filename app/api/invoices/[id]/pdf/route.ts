@@ -3,6 +3,10 @@ import { requireTenantForApi } from '@/lib/auth/utils'
 import { generateInvoicePDF } from '@/lib/invoicing/invoice-pdf'
 import { generateAndUploadInvoicePDF } from '@/lib/invoicing/invoice-pdf-storage'
 
+// Disable caching for this route - PDFs can be regenerated and should always be fresh
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 /**
  * GET /api/invoices/[id]/pdf
  * 
@@ -20,6 +24,12 @@ import { generateAndUploadInvoicePDF } from '@/lib/invoicing/invoice-pdf-storage
  * - Provides permanent URLs (no expiration)
  * - Works for authenticated users indefinitely
  * - Better security than signed URLs
+ * 
+ * Cache Control:
+ * - Uses ETag based on pdf_generated_at timestamp
+ * - Supports conditional requests (If-None-Match)
+ * - Short cache time (60s) with must-revalidate for draft invoices
+ * - Ensures browsers fetch fresh PDFs after regeneration
  */
 export async function GET(
   request: Request,
@@ -54,7 +64,7 @@ export async function GET(
   // you can only access invoices belonging to the specified tenant
   const { data: invoice, error: fetchError } = await supabase
     .from('invoices')
-    .select('id, tenant_id, pdf_url')
+    .select('id, tenant_id, pdf_url, pdf_generated_at')
     .eq('id', id)
     .eq('tenant_id', tenantId)
     .single()
@@ -78,13 +88,48 @@ export async function GET(
       if (!downloadError && fileData) {
         // Convert Blob to ArrayBuffer, then to Uint8Array
         const arrayBuffer = await fileData.arrayBuffer()
-        return new NextResponse(new Uint8Array(arrayBuffer), {
-          headers: {
-            'Content-Type': 'application/pdf',
-            'Content-Disposition': `inline; filename="invoice-${id}.pdf"`,
-            'Cache-Control': 'private, max-age=3600', // Cache for 1 hour
-          },
-        })
+        
+        // Create cache headers with ETag and Last-Modified based on pdf_generated_at
+        // This allows browsers to revalidate when PDF is regenerated
+        const headers: HeadersInit = {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `inline; filename="invoice-${id}.pdf"`,
+        }
+        
+        // Add ETag, Last-Modified, and cache control for proper cache validation
+        if (invoice.pdf_generated_at) {
+          // Use pdf_generated_at as ETag (wrapped in quotes as per HTTP spec)
+          const etag = `"${invoice.pdf_generated_at}"`
+          headers['ETag'] = etag
+          
+          // Add Last-Modified header for additional cache validation
+          const lastModified = new Date(invoice.pdf_generated_at).toUTCString()
+          headers['Last-Modified'] = lastModified
+          
+          // Check if client has matching ETag (304 Not Modified)
+          const ifNoneMatch = request.headers.get('If-None-Match')
+          if (ifNoneMatch === etag) {
+            return new NextResponse(null, { status: 304, headers })
+          }
+          
+          // Check If-Modified-Since header
+          const ifModifiedSince = request.headers.get('If-Modified-Since')
+          if (ifModifiedSince) {
+            const clientDate = new Date(ifModifiedSince)
+            const serverDate = new Date(invoice.pdf_generated_at)
+            if (serverDate <= clientDate) {
+              return new NextResponse(null, { status: 304, headers })
+            }
+          }
+          
+          // Use short cache with must-revalidate to ensure fresh PDFs after regeneration
+          headers['Cache-Control'] = 'private, must-revalidate, max-age=60' // 1 minute cache, must revalidate
+        } else {
+          // No pdf_generated_at means PDF might be stale, use no-cache
+          headers['Cache-Control'] = 'private, no-cache, must-revalidate'
+        }
+        
+        return new NextResponse(new Uint8Array(arrayBuffer), { headers })
       }
 
       // If download fails, log and fall through to generate on-demand
@@ -126,13 +171,18 @@ export async function GET(
 
     // Return PDF with proper headers
     // Convert Buffer to Uint8Array for NextResponse compatibility
-    return new NextResponse(new Uint8Array(pdfBuffer), {
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="invoice-${id}.pdf"`,
-        'Cache-Control': 'private, max-age=3600', // Cache for 1 hour
-      },
-    })
+    const headers: HeadersInit = {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename="invoice-${id}.pdf"`,
+      'Cache-Control': 'private, no-cache, must-revalidate', // No cache for on-demand generated PDFs
+    }
+    
+    // If invoice has pdf_generated_at, add ETag
+    if (invoice.pdf_generated_at) {
+      headers['ETag'] = `"${invoice.pdf_generated_at}"`
+    }
+    
+    return new NextResponse(new Uint8Array(pdfBuffer), { headers })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to generate PDF' },
