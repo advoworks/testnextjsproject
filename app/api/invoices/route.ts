@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireTenantForApi } from '@/lib/auth/utils'
 import { validateInvoice } from '@/lib/invoicing/validation'
 import { getEffectiveCurrency } from '@/lib/utils/locale'
+import { generateAndUploadInvoicePDF } from '@/lib/invoicing/invoice-pdf-storage'
 import type { InvoiceLineItem } from '@/lib/db/types'
 
 export async function GET(request: Request) {
@@ -131,9 +132,9 @@ export async function POST(request: Request) {
   }
 
   // Process line items
-  const processedLineItems: InvoiceLineItem[] = line_items.map((item: any, index: number) => {
-    const quantity = parseFloat(item.quantity) || 1
-    const unitPrice = parseFloat(item.unit_price) || 0
+  const processedLineItems: InvoiceLineItem[] = line_items.map((item: { description?: string; quantity?: number; unit_price?: number; sort_order?: number }, index: number) => {
+    const quantity = typeof item.quantity === 'number' ? item.quantity : parseFloat(String(item.quantity || 1)) || 1
+    const unitPrice = typeof item.unit_price === 'number' ? item.unit_price : parseFloat(String(item.unit_price || 0)) || 0
     const lineTotal = quantity * unitPrice
 
     return {
@@ -228,6 +229,29 @@ export async function POST(request: Request) {
   if (fetchError) {
     return NextResponse.json({ error: fetchError.message }, { status: 500 })
   }
+
+  // Generate and upload PDF (non-blocking - don't fail invoice creation if this fails)
+  // This runs asynchronously and updates the invoice with pdf_url when complete
+  ;(async () => {
+    try {
+      const pdfUrl = await generateAndUploadInvoicePDF(invoice.id, supabase)
+      if (pdfUrl) {
+        // Update invoice with PDF URL
+        try {
+          await supabase
+            .from('invoices')
+            .update({ pdf_url: pdfUrl })
+            .eq('id', invoice.id)
+          console.log(`PDF URL updated for invoice ${invoice.id}`)
+        } catch (error) {
+          console.error(`Failed to update PDF URL: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        }
+      }
+    } catch (error) {
+      console.error(`PDF generation failed for invoice ${invoice.id}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      // Don't throw - invoice creation succeeded, PDF generation is optional
+    }
+  })()
 
   return NextResponse.json({ invoice: completeInvoice }, { status: 201 })
 }

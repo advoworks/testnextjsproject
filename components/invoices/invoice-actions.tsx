@@ -163,14 +163,24 @@ export default function InvoiceActions({ invoice }: InvoiceActionsProps) {
         </>
       )}
 
-      {(invoice.status === 'issued' || invoice.status === 'sent' || invoice.status === 'paid' || invoice.status === 'voided') && (
+      {/* PDF Link - Show for all statuses if PDF exists, or generate on-demand */}
+      {invoice.pdf_url ? (
+        <a
+          href={invoice.pdf_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          View PDF
+        </a>
+      ) : (
         <a
           href={`/api/invoices/${invoice.id}/pdf`}
           target="_blank"
           rel="noopener noreferrer"
           className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
         >
-          View PDF
+          Generate PDF
         </a>
       )}
     </div>

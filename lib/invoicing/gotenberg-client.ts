@@ -2,7 +2,8 @@
  * Gotenberg client for converting HTML to PDF
  */
 
-const GOTENBERG_URL = process.env.GOTENBERG_URL || 'http://localhost:3000'
+// Hardcoded Gotenberg URL as per requirements
+const GOTENBERG_URL = 'http://gotenberg-csk8sc0g48ck0gwcs4kkc448:3000'
 
 /**
  * Converts HTML string to PDF using Gotenberg
@@ -11,10 +12,6 @@ const GOTENBERG_URL = process.env.GOTENBERG_URL || 'http://localhost:3000'
  * @returns Promise<Buffer> - The PDF buffer
  */
 export async function convertHTMLToPDF(html: string): Promise<Buffer> {
-  const gotenbergUrl = process.env.GOTENBERG_URL
-  if (!gotenbergUrl) {
-    throw new Error('GOTENBERG_URL environment variable is not set')
-  }
 
   // Create FormData for Gotenberg API
   // In Node.js, we need to use the form-data library or create multipart/form-data manually
@@ -24,7 +21,7 @@ export async function convertHTMLToPDF(html: string): Promise<Buffer> {
   formData.append('files', htmlBlob, 'index.html')
 
   try {
-    const response = await fetch(`${gotenbergUrl}/forms/chromium/convert/html`, {
+    const response = await fetch(`${GOTENBERG_URL}/forms/chromium/convert/html`, {
       method: 'POST',
       body: formData,
     })

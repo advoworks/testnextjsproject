@@ -55,6 +55,9 @@ export default function InvoiceList({ invoices }: InvoiceListProps) {
             <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
               Total
             </th>
+            <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              PDF
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-200 bg-white dark:divide-zinc-800 dark:bg-zinc-900">
@@ -83,6 +86,29 @@ export default function InvoiceList({ invoices }: InvoiceListProps) {
               </td>
               <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-zinc-900 dark:text-zinc-100">
                 {formatCurrency(invoice.total_amount, invoice.currency)}
+              </td>
+              <td className="whitespace-nowrap px-6 py-4 text-center">
+                {invoice.pdf_url ? (
+                  <a
+                    href={invoice.pdf_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                    title="View PDF"
+                  >
+                    📄
+                  </a>
+                ) : (
+                  <a
+                    href={`/api/invoices/${invoice.id}/pdf`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-zinc-600 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-300"
+                    title="Generate PDF"
+                  >
+                    ⏳
+                  </a>
+                )}
               </td>
             </tr>
           ))}

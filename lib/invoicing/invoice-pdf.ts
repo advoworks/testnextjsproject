@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { generateInvoiceHTML } from './pdf-generator'
 import { convertHTMLToPDF } from './gotenberg-client'
 import type { Invoice, Customer, TenantBusinessDetails, InvoiceLineItem } from '@/lib/db/types'
@@ -8,10 +9,15 @@ import type { Invoice, Customer, TenantBusinessDetails, InvoiceLineItem } from '
  * Fetches all required data and generates PDF on-demand
  * 
  * @param invoiceId - The invoice ID
+ * @param supabaseClient - Optional Supabase client (if not provided, creates a new one)
  * @returns Promise<Buffer> - The PDF buffer
  */
-export async function generateInvoicePDF(invoiceId: string): Promise<Buffer> {
-  const supabase = await createClient()
+export async function generateInvoicePDF(
+  invoiceId: string,
+  supabaseClient?: SupabaseClient
+): Promise<Buffer> {
+  // Use provided client or create one (for backward compatibility)
+  const supabase = supabaseClient || await createClient()
 
   // Fetch invoice
   const { data: invoice, error: invoiceError } = await supabase

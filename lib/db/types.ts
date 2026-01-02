@@ -79,6 +79,7 @@ export type Invoice = {
   total_amount: number
   notes: string | null
   terms: string | null
+  pdf_url: string | null
   voided_at: string | null
   void_reason: string | null
   paid_at: string | null
