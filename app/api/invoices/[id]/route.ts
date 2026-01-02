@@ -222,9 +222,12 @@ export async function PUT(
 
   // Regenerate and upload PDF (non-blocking - don't fail update if this fails)
   // This runs asynchronously and updates the invoice with pdf_url when complete
+  console.log(`[Invoice Update] Starting async PDF regeneration for invoice ${id}`)
   ;(async () => {
+    console.log(`[Invoice Update] Async PDF regeneration started for invoice ${id}`)
     try {
       const pdfUrl = await generateAndUploadInvoicePDF(id, supabase)
+      console.log(`[Invoice Update] PDF regeneration completed, pdfUrl: ${pdfUrl ? 'generated' : 'null'}`)
       if (pdfUrl) {
         // Update invoice with new PDF URL
         try {
@@ -232,13 +235,15 @@ export async function PUT(
             .from('invoices')
             .update({ pdf_url: pdfUrl })
             .eq('id', id)
-          console.log(`PDF URL updated for invoice ${id}`)
+          console.log(`[Invoice Update] PDF URL updated for invoice ${id}`)
         } catch (error) {
-          console.error(`Failed to update PDF URL: ${error instanceof Error ? error.message : 'Unknown error'}`)
+          console.error(`[Invoice Update] Failed to update PDF URL: ${error instanceof Error ? error.message : 'Unknown error'}`, error)
         }
+      } else {
+        console.warn(`[Invoice Update] PDF URL is null, not updating invoice ${id}`)
       }
     } catch (error) {
-      console.error(`PDF regeneration failed for invoice ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error(`[Invoice Update] PDF regeneration failed for invoice ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`, error)
       // Don't throw - invoice update succeeded, PDF regeneration is optional
     }
   })()

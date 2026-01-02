@@ -13,6 +13,7 @@ export async function generateAndUploadInvoicePDF(
   invoiceId: string,
   supabaseClient: SupabaseClient
 ): Promise<string | null> {
+  console.log(`[PDF Storage] Starting PDF generation for invoice ${invoiceId}`)
   try {
     // First, fetch invoice to get tenant_id
     const { data: invoice, error: invoiceError } = await supabaseClient
@@ -22,15 +23,20 @@ export async function generateAndUploadInvoicePDF(
       .single()
 
     if (invoiceError || !invoice) {
-      console.error(`Failed to fetch invoice for PDF generation: ${invoiceError?.message}`)
+      console.error(`[PDF Storage] Failed to fetch invoice: ${invoiceError?.message}`, invoiceError)
       return null
     }
 
+    console.log(`[PDF Storage] Invoice fetched, tenant_id: ${invoice.tenant_id}`)
+
     // Generate PDF buffer
+    console.log(`[PDF Storage] Generating PDF buffer...`)
     const pdfBuffer = await generateInvoicePDF(invoiceId, supabaseClient)
+    console.log(`[PDF Storage] PDF generated, size: ${pdfBuffer.length} bytes`)
 
     // Define storage path: {tenant_id}/invoices/{invoice_id}.pdf
     const filePath = `${invoice.tenant_id}/invoices/${invoiceId}.pdf`
+    console.log(`[PDF Storage] Uploading to path: ${filePath}`)
 
     // Upload to Supabase Storage
     const { error: uploadError } = await supabaseClient.storage
@@ -41,9 +47,11 @@ export async function generateAndUploadInvoicePDF(
       })
 
     if (uploadError) {
-      console.error(`Failed to upload PDF to storage: ${uploadError.message}`)
+      console.error(`[PDF Storage] Upload failed:`, uploadError)
       return null
     }
+
+    console.log(`[PDF Storage] Upload successful, generating signed URL...`)
 
     // Generate signed URL (valid for 1 hour)
     const { data: signedUrlData, error: signedUrlError } = await supabaseClient.storage
@@ -51,14 +59,15 @@ export async function generateAndUploadInvoicePDF(
       .createSignedUrl(filePath, 3600) // 1 hour = 3600 seconds
 
     if (signedUrlError || !signedUrlData) {
-      console.error(`Failed to generate signed URL: ${signedUrlError?.message}`)
+      console.error(`[PDF Storage] Failed to generate signed URL:`, signedUrlError)
       return null
     }
 
+    console.log(`[PDF Storage] Signed URL generated successfully: ${signedUrlData.signedUrl.substring(0, 50)}...`)
     return signedUrlData.signedUrl
   } catch (error) {
     // Log error but don't throw - PDF generation is non-blocking
-    console.error(`Error generating/uploading invoice PDF: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    console.error(`[PDF Storage] Unexpected error:`, error)
     return null
   }
 }

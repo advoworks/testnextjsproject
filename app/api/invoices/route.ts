@@ -232,9 +232,12 @@ export async function POST(request: Request) {
 
   // Generate and upload PDF (non-blocking - don't fail invoice creation if this fails)
   // This runs asynchronously and updates the invoice with pdf_url when complete
+  console.log(`[Invoice Creation] Starting async PDF generation for invoice ${invoice.id}`)
   ;(async () => {
+    console.log(`[Invoice Creation] Async PDF generation started for invoice ${invoice.id}`)
     try {
       const pdfUrl = await generateAndUploadInvoicePDF(invoice.id, supabase)
+      console.log(`[Invoice Creation] PDF generation completed, pdfUrl: ${pdfUrl ? 'generated' : 'null'}`)
       if (pdfUrl) {
         // Update invoice with PDF URL
         try {
@@ -242,13 +245,15 @@ export async function POST(request: Request) {
             .from('invoices')
             .update({ pdf_url: pdfUrl })
             .eq('id', invoice.id)
-          console.log(`PDF URL updated for invoice ${invoice.id}`)
+          console.log(`[Invoice Creation] PDF URL updated for invoice ${invoice.id}`)
         } catch (error) {
-          console.error(`Failed to update PDF URL: ${error instanceof Error ? error.message : 'Unknown error'}`)
+          console.error(`[Invoice Creation] Failed to update PDF URL: ${error instanceof Error ? error.message : 'Unknown error'}`, error)
         }
+      } else {
+        console.warn(`[Invoice Creation] PDF URL is null, not updating invoice ${invoice.id}`)
       }
     } catch (error) {
-      console.error(`PDF generation failed for invoice ${invoice.id}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error(`[Invoice Creation] PDF generation failed for invoice ${invoice.id}: ${error instanceof Error ? error.message : 'Unknown error'}`, error)
       // Don't throw - invoice creation succeeded, PDF generation is optional
     }
   })()
