@@ -63,6 +63,13 @@ export default function InvoiceActions({ invoice }: InvoiceActionsProps) {
             body: JSON.stringify({}),
           })
           break
+        case 'regenerate-pdf':
+          response = await fetch(`/api/invoices/${invoice.id}/regenerate-pdf`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+          })
+          break
         default:
           setLoading(false)
           return
@@ -106,6 +113,15 @@ export default function InvoiceActions({ invoice }: InvoiceActionsProps) {
           >
             {loading ? 'Issuing...' : 'Issue'}
           </button>
+          {invoice.pdf_url && (
+            <button
+              onClick={() => handleAction('regenerate-pdf')}
+              disabled={loading}
+              className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              {loading ? 'Regenerating...' : 'Regenerate PDF'}
+            </button>
+          )}
         </>
       )}
 

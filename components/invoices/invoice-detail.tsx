@@ -305,7 +305,17 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
             <span>📄</span>
             {invoice.pdf_url ? 'View PDF' : 'Generate PDF'}
           </a>
-          {!invoice.pdf_url && (
+          {invoice.pdf_url ? (
+            invoice.pdf_generated_at ? (
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                PDF generated on {formatDate(invoice.pdf_generated_at)}
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                PDF is ready to view
+              </p>
+            )
+          ) : (
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
               PDF will be generated on-demand and cached for future access
             </p>

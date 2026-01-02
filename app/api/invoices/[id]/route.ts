@@ -220,34 +220,42 @@ export async function PUT(
     return NextResponse.json({ error: fetchCompleteError.message }, { status: 500 })
   }
 
-  // Regenerate and upload PDF (non-blocking - don't fail update if this fails)
+  // Regenerate and upload PDF ONLY for draft invoices (non-blocking)
+  // For issued/sent/paid invoices, PDF should not be regenerated (audit integrity)
   // pdf_url now stores the file path (e.g., "{tenant_id}/invoices/{invoice_id}.pdf")
   // The PDF can be accessed via /api/invoices/[id]/pdf which respects RLS
-  console.log(`[Invoice Update] Starting async PDF regeneration for invoice ${id}`)
-  ;(async () => {
-    console.log(`[Invoice Update] Async PDF regeneration started for invoice ${id}`)
-    try {
-      const pdfPath = await generateAndUploadInvoicePDF(id, supabase)
-      console.log(`[Invoice Update] PDF regeneration completed, pdfPath: ${pdfPath ? 'generated' : 'null'}`)
-      if (pdfPath) {
-        // Update invoice with new PDF file path (not a URL)
-        try {
-          await supabase
-            .from('invoices')
-            .update({ pdf_url: pdfPath })
-            .eq('id', id)
-          console.log(`[Invoice Update] PDF path updated for invoice ${id}: ${pdfPath}`)
-        } catch (error) {
-          console.error(`[Invoice Update] Failed to update PDF path: ${error instanceof Error ? error.message : 'Unknown error'}`, error)
+  if (existingInvoice.status === 'draft') {
+    console.log(`[Invoice Update] Starting async PDF regeneration for draft invoice ${id}`)
+    ;(async () => {
+      console.log(`[Invoice Update] Async PDF regeneration started for invoice ${id}`)
+      try {
+        const pdfPath = await generateAndUploadInvoicePDF(id, supabase)
+        console.log(`[Invoice Update] PDF regeneration completed, pdfPath: ${pdfPath ? 'generated' : 'null'}`)
+        if (pdfPath) {
+          // Update invoice with new PDF file path and generation timestamp
+          try {
+            await supabase
+              .from('invoices')
+              .update({ 
+                pdf_url: pdfPath,
+                pdf_generated_at: new Date().toISOString()
+              })
+              .eq('id', id)
+            console.log(`[Invoice Update] PDF path updated for invoice ${id}: ${pdfPath}`)
+          } catch (error) {
+            console.error(`[Invoice Update] Failed to update PDF path: ${error instanceof Error ? error.message : 'Unknown error'}`, error)
+          }
+        } else {
+          console.warn(`[Invoice Update] PDF path is null, not updating invoice ${id}`)
         }
-      } else {
-        console.warn(`[Invoice Update] PDF path is null, not updating invoice ${id}`)
+      } catch (error) {
+        console.error(`[Invoice Update] PDF regeneration failed for invoice ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`, error)
+        // Don't throw - invoice update succeeded, PDF regeneration is optional
       }
-    } catch (error) {
-      console.error(`[Invoice Update] PDF regeneration failed for invoice ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`, error)
-      // Don't throw - invoice update succeeded, PDF regeneration is optional
-    }
-  })()
+    })()
+  } else {
+    console.log(`[Invoice Update] Skipping PDF regeneration for ${existingInvoice.status} invoice ${id} (only drafts are regenerated)`)
+  }
 
   return NextResponse.json({ invoice: completeInvoice })
 }

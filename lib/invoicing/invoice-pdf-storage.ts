@@ -54,6 +54,7 @@ export async function generateAndUploadInvoicePDF(
     console.log(`[PDF Storage] Upload successful, file path: ${filePath}`)
     // Return the file path instead of a signed URL
     // The path will be used to access the file via the proxy endpoint which respects RLS
+    // Note: pdf_generated_at should be set by the caller when updating the invoice
     return filePath
   } catch (error) {
     // Log error but don't throw - PDF generation is non-blocking

@@ -80,6 +80,7 @@ export type Invoice = {
   notes: string | null
   terms: string | null
   pdf_url: string | null
+  pdf_generated_at: string | null
   voided_at: string | null
   void_reason: string | null
   paid_at: string | null

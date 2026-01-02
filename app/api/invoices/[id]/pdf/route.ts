@@ -105,11 +105,14 @@ export async function GET(
       try {
         const filePath = await generateAndUploadInvoicePDF(id, supabase)
         if (filePath) {
-          // Update invoice with file path
+          // Update invoice with file path and generation timestamp
           try {
             await supabase
               .from('invoices')
-              .update({ pdf_url: filePath })
+              .update({ 
+                pdf_url: filePath,
+                pdf_generated_at: new Date().toISOString()
+              })
               .eq('id', id)
             console.log(`[PDF Endpoint] PDF path updated for invoice ${id}`)
           } catch (error) {

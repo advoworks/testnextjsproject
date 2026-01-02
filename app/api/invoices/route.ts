@@ -245,11 +245,14 @@ export async function POST(request: Request) {
       const pdfPath = await generateAndUploadInvoicePDF(invoice.id, supabase)
       console.log(`[Invoice Creation] ✅ PDF generation completed, pdfPath: ${pdfPath ? '✅ generated' : '❌ null'}`)
       if (pdfPath) {
-        // Update invoice with PDF file path (not a URL)
+        // Update invoice with PDF file path and generation timestamp
         try {
           const { error: updateError } = await supabase
             .from('invoices')
-            .update({ pdf_url: pdfPath })
+            .update({ 
+              pdf_url: pdfPath,
+              pdf_generated_at: new Date().toISOString()
+            })
             .eq('id', invoice.id)
           
           if (updateError) {
