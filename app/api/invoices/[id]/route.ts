@@ -44,7 +44,9 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const timestamp = new Date().toISOString()
   const { id } = await params
+  console.log(`[${timestamp}] [Invoice Update] 🚀 PUT /api/invoices/${id} called`)
   const body = await request.json()
   const authResult = await requireTenantForApi(request, body)
   if (authResult instanceof NextResponse) {
@@ -54,6 +56,8 @@ export async function PUT(
   const { supabase, tenantId } = authResult
 
   // Check if invoice exists and is a draft
+  const fetchTimestamp = new Date().toISOString()
+  console.log(`[${fetchTimestamp}] [Invoice Update] 🔍 Fetching invoice ${id}...`)
   const { data: existingInvoice, error: fetchError } = await supabase
     .from('invoices')
     .select('status, tax_amount, currency, notes, terms')
@@ -62,13 +66,20 @@ export async function PUT(
     .single()
 
   if (fetchError || !existingInvoice) {
+    const errorTimestamp = new Date().toISOString()
+    console.log(`[${errorTimestamp}] [Invoice Update] ❌ Invoice not found: ${fetchError?.message || 'No invoice returned'}`)
     return NextResponse.json(
       { error: fetchError?.message || 'Invoice not found' },
       { status: fetchError?.code === 'PGRST116' ? 404 : 500 }
     )
   }
 
+  const foundTimestamp = new Date().toISOString()
+  console.log(`[${foundTimestamp}] [Invoice Update] 📋 Invoice found: status=${existingInvoice.status}, tenant_id=${tenantId}`)
+
   if (existingInvoice.status !== 'draft') {
+    const statusErrorTimestamp = new Date().toISOString()
+    console.log(`[${statusErrorTimestamp}] [Invoice Update] ❌ Cannot update ${existingInvoice.status} invoice (only drafts can be edited)`)
     return NextResponse.json(
       { error: 'Can only edit draft invoices' },
       { status: 400 }
@@ -217,44 +228,77 @@ export async function PUT(
     .single()
 
   if (fetchCompleteError) {
+    const fetchErrorTimestamp = new Date().toISOString()
+    console.error(`[${fetchErrorTimestamp}] [Invoice Update] ❌ Failed to fetch complete invoice: ${fetchCompleteError.message}`)
     return NextResponse.json({ error: fetchCompleteError.message }, { status: 500 })
   }
+
+  const updateSuccessTimestamp = new Date().toISOString()
+  console.log(`[${updateSuccessTimestamp}] [Invoice Update] ✅ Invoice updated successfully: ${id}`)
 
   // Regenerate and upload PDF ONLY for draft invoices (non-blocking)
   // For issued/sent/paid invoices, PDF should not be regenerated (audit integrity)
   // pdf_url now stores the file path (e.g., "{tenant_id}/invoices/{invoice_id}.pdf")
   // The PDF can be accessed via /api/invoices/[id]/pdf which respects RLS
   if (existingInvoice.status === 'draft') {
-    console.log(`[Invoice Update] Starting async PDF regeneration for draft invoice ${id}`)
-    ;(async () => {
-      console.log(`[Invoice Update] Async PDF regeneration started for invoice ${id}`)
+    const timestamp = new Date().toISOString()
+    console.log(`[${timestamp}] [Invoice Update] 📄 Starting async PDF regeneration for draft invoice ${id}`)
+    
+    // Use an async IIFE with proper error handling
+    const pdfRegenerationPromise = (async () => {
+      const asyncTimestamp = new Date().toISOString()
+      console.log(`[${asyncTimestamp}] [Invoice Update] 🔄 Async PDF regeneration STARTED for invoice ${id}`)
       try {
         const pdfPath = await generateAndUploadInvoicePDF(id, supabase)
-        console.log(`[Invoice Update] PDF regeneration completed, pdfPath: ${pdfPath ? 'generated' : 'null'}`)
+        const completionTimestamp = new Date().toISOString()
+        console.log(`[${completionTimestamp}] [Invoice Update] ✅ PDF regeneration completed, pdfPath: ${pdfPath ? '✅ generated' : '❌ null'}`)
+        
         if (pdfPath) {
           // Update invoice with new PDF file path and generation timestamp
           try {
-            await supabase
+            const updateTimestamp = new Date().toISOString()
+            const pdfGeneratedAt = new Date().toISOString()
+            const { error: updateError } = await supabase
               .from('invoices')
               .update({ 
                 pdf_url: pdfPath,
-                pdf_generated_at: new Date().toISOString()
+                pdf_generated_at: pdfGeneratedAt
               })
               .eq('id', id)
-            console.log(`[Invoice Update] PDF path updated for invoice ${id}: ${pdfPath}`)
+            
+            if (updateError) {
+              console.error(`[${updateTimestamp}] [Invoice Update] ❌ Failed to update PDF path: ${updateError.message}`, updateError)
+            } else {
+              console.log(`[${updateTimestamp}] [Invoice Update] ✅ PDF path updated successfully for invoice ${id}: ${pdfPath}`)
+            }
           } catch (error) {
-            console.error(`[Invoice Update] Failed to update PDF path: ${error instanceof Error ? error.message : 'Unknown error'}`, error)
+            const errorTimestamp = new Date().toISOString()
+            console.error(`[${errorTimestamp}] [Invoice Update] ❌ Exception updating PDF path: ${error instanceof Error ? error.message : 'Unknown error'}`, error)
           }
         } else {
-          console.warn(`[Invoice Update] PDF path is null, not updating invoice ${id}`)
+          const warnTimestamp = new Date().toISOString()
+          console.warn(`[${warnTimestamp}] [Invoice Update] ⚠️ PDF path is null, not updating invoice ${id}`)
         }
       } catch (error) {
-        console.error(`[Invoice Update] PDF regeneration failed for invoice ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`, error)
+        const errorTimestamp = new Date().toISOString()
+        console.error(`[${errorTimestamp}] [Invoice Update] ❌ PDF regeneration failed for invoice ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`, error)
         // Don't throw - invoice update succeeded, PDF regeneration is optional
       }
     })()
+    
+    // Attach error handler to prevent unhandled promise rejection
+    pdfRegenerationPromise.catch((error) => {
+      const errorTimestamp = new Date().toISOString()
+      console.error(`[${errorTimestamp}] [Invoice Update] ❌ Unhandled promise rejection in PDF regeneration:`, error)
+    })
+    
+    // Keep reference to prevent garbage collection (Next.js might terminate the context)
+    if (typeof globalThis !== 'undefined') {
+      (globalThis as { __pendingPdfRegeneration?: Promise<void> }).__pendingPdfRegeneration = pdfRegenerationPromise
+    }
   } else {
-    console.log(`[Invoice Update] Skipping PDF regeneration for ${existingInvoice.status} invoice ${id} (only drafts are regenerated)`)
+    const timestamp = new Date().toISOString()
+    console.log(`[${timestamp}] [Invoice Update] ⏭️ Skipping PDF regeneration for ${existingInvoice.status} invoice ${id} (only drafts are regenerated)`)
   }
 
   return NextResponse.json({ invoice: completeInvoice })

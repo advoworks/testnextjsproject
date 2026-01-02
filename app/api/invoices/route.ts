@@ -52,9 +52,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  console.log(`[Invoice Creation] 🚀 POST /api/invoices called`)
+  const timestamp = new Date().toISOString()
+  console.log(`[${timestamp}] [Invoice Creation] 🚀 POST /api/invoices called`)
   const body = await request.json()
-  console.log(`[Invoice Creation] 📝 Request body received:`, { customer_id: body.customer_id, invoice_date: body.invoice_date })
+  const bodyTimestamp = new Date().toISOString()
+  console.log(`[${bodyTimestamp}] [Invoice Creation] 📝 Request body received:`, { customer_id: body.customer_id, invoice_date: body.invoice_date })
   const authResult = await requireTenantForApi(request, body)
   if (authResult instanceof NextResponse) {
     return authResult
@@ -229,51 +231,62 @@ export async function POST(request: Request) {
     .single()
 
   if (fetchError) {
-    console.error(`[Invoice Creation] Failed to fetch complete invoice: ${fetchError.message}`)
+    const errorTimestamp = new Date().toISOString()
+    console.error(`[${errorTimestamp}] [Invoice Creation] ❌ Failed to fetch complete invoice: ${fetchError.message}`)
     return NextResponse.json({ error: fetchError.message }, { status: 500 })
   }
 
-  console.log(`[Invoice Creation] ✅ Invoice created successfully: ${invoice.id}`)
-  console.log(`[Invoice Creation] 📄 Starting PDF generation in background...`)
+  const successTimestamp = new Date().toISOString()
+  console.log(`[${successTimestamp}] [Invoice Creation] ✅ Invoice created successfully: ${invoice.id}`)
+  const pdfStartTimestamp = new Date().toISOString()
+  console.log(`[${pdfStartTimestamp}] [Invoice Creation] 📄 Starting PDF generation in background...`)
 
   // Generate and upload PDF (non-blocking - don't fail invoice creation if this fails)
   // pdf_url now stores the file path (e.g., "{tenant_id}/invoices/{invoice_id}.pdf")
   // The PDF can be accessed via /api/invoices/[id]/pdf which respects RLS
   const pdfGenerationPromise = (async () => {
-    console.log(`[Invoice Creation] 🔄 Async PDF generation STARTED for invoice ${invoice.id}`)
+    const asyncStartTimestamp = new Date().toISOString()
+    console.log(`[${asyncStartTimestamp}] [Invoice Creation] 🔄 Async PDF generation STARTED for invoice ${invoice.id}`)
     try {
       const pdfPath = await generateAndUploadInvoicePDF(invoice.id, supabase)
-      console.log(`[Invoice Creation] ✅ PDF generation completed, pdfPath: ${pdfPath ? '✅ generated' : '❌ null'}`)
+      const completionTimestamp = new Date().toISOString()
+      console.log(`[${completionTimestamp}] [Invoice Creation] ✅ PDF generation completed, pdfPath: ${pdfPath ? '✅ generated' : '❌ null'}`)
       if (pdfPath) {
         // Update invoice with PDF file path and generation timestamp
         try {
+          const updateTimestamp = new Date().toISOString()
+          const pdfGeneratedAt = new Date().toISOString()
           const { error: updateError } = await supabase
             .from('invoices')
             .update({ 
               pdf_url: pdfPath,
-              pdf_generated_at: new Date().toISOString()
+              pdf_generated_at: pdfGeneratedAt
             })
             .eq('id', invoice.id)
           
           if (updateError) {
-            console.error(`[Invoice Creation] ❌ Failed to update PDF path:`, updateError)
+            console.error(`[${updateTimestamp}] [Invoice Creation] ❌ Failed to update PDF path:`, updateError)
           } else {
-            console.log(`[Invoice Creation] ✅ PDF path updated successfully for invoice ${invoice.id}: ${pdfPath}`)
+            console.log(`[${updateTimestamp}] [Invoice Creation] ✅ PDF path updated successfully for invoice ${invoice.id}: ${pdfPath}`)
           }
         } catch (error) {
-          console.error(`[Invoice Creation] ❌ Exception updating PDF path:`, error)
+          const exceptionTimestamp = new Date().toISOString()
+          console.error(`[${exceptionTimestamp}] [Invoice Creation] ❌ Exception updating PDF path:`, error)
         }
       } else {
-        console.warn(`[Invoice Creation] ⚠️ PDF path is null, not updating invoice ${invoice.id}`)
+        const warnTimestamp = new Date().toISOString()
+        console.warn(`[${warnTimestamp}] [Invoice Creation] ⚠️ PDF path is null, not updating invoice ${invoice.id}`)
       }
     } catch (error) {
-      console.error(`[Invoice Creation] ❌ PDF generation exception:`, error)
+      const exceptionTimestamp = new Date().toISOString()
+      console.error(`[${exceptionTimestamp}] [Invoice Creation] ❌ PDF generation exception:`, error)
     }
   })()
   
   // Attach error handler to prevent unhandled promise rejection
   pdfGenerationPromise.catch((error) => {
-    console.error(`[Invoice Creation] ❌ Unhandled promise rejection in PDF generation:`, error)
+    const rejectionTimestamp = new Date().toISOString()
+    console.error(`[${rejectionTimestamp}] [Invoice Creation] ❌ Unhandled promise rejection in PDF generation:`, error)
   })
 
   // Keep reference to prevent garbage collection (Next.js might terminate the context)
@@ -282,7 +295,8 @@ export async function POST(request: Request) {
     (globalThis as { __pendingPdfGeneration?: Promise<void> }).__pendingPdfGeneration = pdfGenerationPromise
   }
 
-  console.log(`[Invoice Creation] 📤 Returning response for invoice ${invoice.id}`)
+  const returnTimestamp = new Date().toISOString()
+  console.log(`[${returnTimestamp}] [Invoice Creation] 📤 Returning response for invoice ${invoice.id}`)
   return NextResponse.json({ invoice: completeInvoice }, { status: 201 })
 }
 

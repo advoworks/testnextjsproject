@@ -13,7 +13,8 @@ export async function generateAndUploadInvoicePDF(
   invoiceId: string,
   supabaseClient: SupabaseClient
 ): Promise<string | null> {
-  console.log(`[PDF Storage] Starting PDF generation for invoice ${invoiceId}`)
+  const timestamp = new Date().toISOString()
+  console.log(`[${timestamp}] [PDF Storage] Starting PDF generation for invoice ${invoiceId}`)
   try {
     // First, fetch invoice to get tenant_id
     const { data: invoice, error: invoiceError } = await supabaseClient
@@ -23,20 +24,25 @@ export async function generateAndUploadInvoicePDF(
       .single()
 
     if (invoiceError || !invoice) {
-      console.error(`[PDF Storage] Failed to fetch invoice: ${invoiceError?.message}`, invoiceError)
+      const errorTimestamp = new Date().toISOString()
+      console.error(`[${errorTimestamp}] [PDF Storage] Failed to fetch invoice: ${invoiceError?.message}`, invoiceError)
       return null
     }
 
-    console.log(`[PDF Storage] Invoice fetched, tenant_id: ${invoice.tenant_id}`)
+    const fetchTimestamp = new Date().toISOString()
+    console.log(`[${fetchTimestamp}] [PDF Storage] Invoice fetched, tenant_id: ${invoice.tenant_id}`)
 
     // Generate PDF buffer
-    console.log(`[PDF Storage] Generating PDF buffer...`)
+    const generateTimestamp = new Date().toISOString()
+    console.log(`[${generateTimestamp}] [PDF Storage] Generating PDF buffer...`)
     const pdfBuffer = await generateInvoicePDF(invoiceId, supabaseClient)
-    console.log(`[PDF Storage] PDF generated, size: ${pdfBuffer.length} bytes`)
+    const generatedTimestamp = new Date().toISOString()
+    console.log(`[${generatedTimestamp}] [PDF Storage] PDF generated, size: ${pdfBuffer.length} bytes`)
 
     // Define storage path: {tenant_id}/invoices/{invoice_id}.pdf
     const filePath = `${invoice.tenant_id}/invoices/${invoiceId}.pdf`
-    console.log(`[PDF Storage] Uploading to path: ${filePath}`)
+    const uploadStartTimestamp = new Date().toISOString()
+    console.log(`[${uploadStartTimestamp}] [PDF Storage] Uploading to path: ${filePath}`)
 
     // Upload to Supabase Storage
     const { error: uploadError } = await supabaseClient.storage
@@ -47,18 +53,21 @@ export async function generateAndUploadInvoicePDF(
       })
 
     if (uploadError) {
-      console.error(`[PDF Storage] Upload failed:`, uploadError)
+      const uploadErrorTimestamp = new Date().toISOString()
+      console.error(`[${uploadErrorTimestamp}] [PDF Storage] Upload failed:`, uploadError)
       return null
     }
 
-    console.log(`[PDF Storage] Upload successful, file path: ${filePath}`)
+    const uploadSuccessTimestamp = new Date().toISOString()
+    console.log(`[${uploadSuccessTimestamp}] [PDF Storage] Upload successful, file path: ${filePath}`)
     // Return the file path instead of a signed URL
     // The path will be used to access the file via the proxy endpoint which respects RLS
     // Note: pdf_generated_at should be set by the caller when updating the invoice
     return filePath
   } catch (error) {
     // Log error but don't throw - PDF generation is non-blocking
-    console.error(`[PDF Storage] Unexpected error:`, error)
+    const errorTimestamp = new Date().toISOString()
+    console.error(`[${errorTimestamp}] [PDF Storage] Unexpected error:`, error)
     return null
   }
 }
