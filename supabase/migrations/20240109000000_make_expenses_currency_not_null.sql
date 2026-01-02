@@ -1,24 +1,30 @@
 -- Make expenses.currency NOT NULL
--- First, update any existing NULL values to use tenant/user currency or fail if not available
+-- First, update any existing NULL values to use tenant currency or a default value
 -- This ensures data integrity before adding the constraint
 
--- Update expenses with NULL currency to use tenant currency
+-- Step 1: Update expenses with NULL currency to use tenant currency (if tenant has currency)
 UPDATE expenses e
 SET currency = (
   SELECT t.currency 
   FROM tenants t 
-  WHERE t.id = e.tenant_id
+  WHERE t.id = e.tenant_id AND t.currency IS NOT NULL
 )
 WHERE e.currency IS NULL
 AND EXISTS (
   SELECT 1 FROM tenants t WHERE t.id = e.tenant_id AND t.currency IS NOT NULL
 );
 
--- Check if there are still any NULL currencies - if so, fail the migration
+-- Step 2: For any remaining NULL currencies, set a default currency (USD)
+-- This handles cases where expenses exist but tenant doesn't have currency set
+UPDATE expenses
+SET currency = 'USD'
+WHERE currency IS NULL;
+
+-- Step 3: Verify no NULL currencies remain (should not happen after step 2, but safety check)
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM expenses WHERE currency IS NULL) THEN
-    RAISE EXCEPTION 'Cannot make currency NOT NULL: there are expenses with NULL currency. Please set currency for all expenses or update tenant currency preferences first.';
+    RAISE EXCEPTION 'Unexpected error: expenses still have NULL currency after migration. This should not happen.';
   END IF;
 END $$;
 

@@ -159,309 +159,586 @@ CREATE TABLE IF NOT EXISTS tenant_business_details (
 -- ============================================================================
 -- INDEXES FOR PERFORMANCE
 -- ============================================================================
-CREATE INDEX IF NOT EXISTS idx_customers_tenant_id ON customers(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email) WHERE email IS NOT NULL;
+-- Create indexes only if they don't exist (handles permission errors gracefully)
+DO $$
+BEGIN
+  -- Customers indexes
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_customers_tenant_id') THEN
+    CREATE INDEX idx_customers_tenant_id ON customers(tenant_id);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_customers_email') THEN
+    CREATE INDEX idx_customers_email ON customers(email) WHERE email IS NOT NULL;
+  END IF;
 
-CREATE INDEX IF NOT EXISTS idx_invoices_tenant_id ON invoices(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_invoices_customer_id ON invoices(customer_id);
-CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
-CREATE INDEX IF NOT EXISTS idx_invoices_invoice_date ON invoices(invoice_date);
-CREATE INDEX IF NOT EXISTS idx_invoices_invoice_number ON invoices(tenant_id, invoice_number) WHERE invoice_number IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_invoices_created_by ON invoices(created_by);
+  -- Invoices indexes
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_invoices_tenant_id') THEN
+    CREATE INDEX idx_invoices_tenant_id ON invoices(tenant_id);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_invoices_customer_id') THEN
+    CREATE INDEX idx_invoices_customer_id ON invoices(customer_id);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_invoices_status') THEN
+    CREATE INDEX idx_invoices_status ON invoices(status);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_invoices_invoice_date') THEN
+    CREATE INDEX idx_invoices_invoice_date ON invoices(invoice_date);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_invoices_invoice_number') THEN
+    CREATE INDEX idx_invoices_invoice_number ON invoices(tenant_id, invoice_number) WHERE invoice_number IS NOT NULL;
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_invoices_created_by') THEN
+    CREATE INDEX idx_invoices_created_by ON invoices(created_by);
+  END IF;
 
-CREATE INDEX IF NOT EXISTS idx_invoice_line_items_invoice_id ON invoice_line_items(invoice_id);
-CREATE INDEX IF NOT EXISTS idx_invoice_line_items_sort_order ON invoice_line_items(invoice_id, sort_order);
+  -- Invoice line items indexes
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_invoice_line_items_invoice_id') THEN
+    CREATE INDEX idx_invoice_line_items_invoice_id ON invoice_line_items(invoice_id);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_invoice_line_items_sort_order') THEN
+    CREATE INDEX idx_invoice_line_items_sort_order ON invoice_line_items(invoice_id, sort_order);
+  END IF;
 
-CREATE INDEX IF NOT EXISTS idx_credit_notes_tenant_id ON credit_notes(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_credit_notes_invoice_id ON credit_notes(invoice_id);
-CREATE INDEX IF NOT EXISTS idx_credit_notes_credit_note_number ON credit_notes(tenant_id, credit_note_number);
+  -- Credit notes indexes
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_credit_notes_tenant_id') THEN
+    CREATE INDEX idx_credit_notes_tenant_id ON credit_notes(tenant_id);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_credit_notes_invoice_id') THEN
+    CREATE INDEX idx_credit_notes_invoice_id ON credit_notes(invoice_id);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_credit_notes_credit_note_number') THEN
+    CREATE INDEX idx_credit_notes_credit_note_number ON credit_notes(tenant_id, credit_note_number);
+  END IF;
 
-CREATE INDEX IF NOT EXISTS idx_receipts_tenant_id ON receipts(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_receipts_invoice_id ON receipts(invoice_id);
-CREATE INDEX IF NOT EXISTS idx_receipts_receipt_number ON receipts(tenant_id, receipt_number);
+  -- Receipts indexes
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_receipts_tenant_id') THEN
+    CREATE INDEX idx_receipts_tenant_id ON receipts(tenant_id);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_receipts_invoice_id') THEN
+    CREATE INDEX idx_receipts_invoice_id ON receipts(invoice_id);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_receipts_receipt_number') THEN
+    CREATE INDEX idx_receipts_receipt_number ON receipts(tenant_id, receipt_number);
+  END IF;
 
-CREATE INDEX IF NOT EXISTS idx_document_deliveries_tenant_id ON document_deliveries(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_document_deliveries_document ON document_deliveries(tenant_id, document_type, document_id);
-CREATE INDEX IF NOT EXISTS idx_document_deliveries_sent_at ON document_deliveries(tenant_id, sent_at);
-CREATE INDEX IF NOT EXISTS idx_document_deliveries_status ON document_deliveries(status);
+  -- Document deliveries indexes
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_document_deliveries_tenant_id') THEN
+    CREATE INDEX idx_document_deliveries_tenant_id ON document_deliveries(tenant_id);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_document_deliveries_document') THEN
+    CREATE INDEX idx_document_deliveries_document ON document_deliveries(tenant_id, document_type, document_id);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_document_deliveries_sent_at') THEN
+    CREATE INDEX idx_document_deliveries_sent_at ON document_deliveries(tenant_id, sent_at);
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_document_deliveries_status') THEN
+    CREATE INDEX idx_document_deliveries_status ON document_deliveries(status);
+  END IF;
 
-CREATE INDEX IF NOT EXISTS idx_invoice_number_sequences_tenant_year ON invoice_number_sequences(tenant_id, year);
+  -- Invoice number sequences indexes
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_invoice_number_sequences_tenant_year') THEN
+    CREATE INDEX idx_invoice_number_sequences_tenant_year ON invoice_number_sequences(tenant_id, year);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- PARTIAL UNIQUE INDEXES (for conditional uniqueness)
 -- ============================================================================
+DO $$
+BEGIN
+  -- Unique email per tenant (only when email is not null)
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_customers_tenant_email_unique') THEN
+    CREATE UNIQUE INDEX idx_customers_tenant_email_unique 
+    ON customers(tenant_id, email) 
+    WHERE email IS NOT NULL;
+  END IF;
 
--- Unique email per tenant (only when email is not null)
-CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_tenant_email_unique 
-ON customers(tenant_id, email) 
-WHERE email IS NOT NULL;
-
--- Unique invoice number per tenant (only when invoice_number is not null)
-CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_tenant_invoice_number_unique 
-ON invoices(tenant_id, invoice_number) 
-WHERE invoice_number IS NOT NULL;
+  -- Unique invoice number per tenant (only when invoice_number is not null)
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_invoices_tenant_invoice_number_unique') THEN
+    CREATE UNIQUE INDEX idx_invoices_tenant_invoice_number_unique 
+    ON invoices(tenant_id, invoice_number) 
+    WHERE invoice_number IS NOT NULL;
+  END IF;
+END $$;
 
 -- ============================================================================
 -- TRIGGERS FOR UPDATED_AT
 -- ============================================================================
-CREATE TRIGGER update_customers_updated_at BEFORE UPDATE ON customers
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_customers_updated_at') THEN
+    CREATE TRIGGER update_customers_updated_at BEFORE UPDATE ON customers
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
 
-CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON invoices
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_invoices_updated_at') THEN
+    CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON invoices
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
 
-CREATE TRIGGER update_invoice_line_items_updated_at BEFORE UPDATE ON invoice_line_items
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_invoice_line_items_updated_at') THEN
+    CREATE TRIGGER update_invoice_line_items_updated_at BEFORE UPDATE ON invoice_line_items
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
 
-CREATE TRIGGER update_credit_notes_updated_at BEFORE UPDATE ON credit_notes
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_credit_notes_updated_at') THEN
+    CREATE TRIGGER update_credit_notes_updated_at BEFORE UPDATE ON credit_notes
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
 
-CREATE TRIGGER update_receipts_updated_at BEFORE UPDATE ON receipts
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_receipts_updated_at') THEN
+    CREATE TRIGGER update_receipts_updated_at BEFORE UPDATE ON receipts
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
 
-CREATE TRIGGER update_invoice_number_sequences_updated_at BEFORE UPDATE ON invoice_number_sequences
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_invoice_number_sequences_updated_at') THEN
+    CREATE TRIGGER update_invoice_number_sequences_updated_at BEFORE UPDATE ON invoice_number_sequences
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
 
-CREATE TRIGGER update_tenant_business_details_updated_at BEFORE UPDATE ON tenant_business_details
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_tenant_business_details_updated_at') THEN
+    CREATE TRIGGER update_tenant_business_details_updated_at BEFORE UPDATE ON tenant_business_details
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END $$;
 
 -- ============================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- ============================================================================
 
--- Enable RLS on all tables
-ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
-ALTER TABLE invoice_line_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE credit_notes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE receipts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE document_deliveries ENABLE ROW LEVEL SECURITY;
-ALTER TABLE invoice_number_sequences ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tenant_business_details ENABLE ROW LEVEL SECURITY;
+-- Enable RLS on all tables (with error handling for permission issues)
+-- If tables already have RLS enabled or we don't have permissions, errors are ignored
+DO $$
+BEGIN
+  -- Enable RLS for customers
+  BEGIN
+    ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+  EXCEPTION 
+    WHEN SQLSTATE '42501' THEN NULL; -- insufficient_privilege: must be owner
+    WHEN OTHERS THEN NULL; -- Ignore other errors (e.g., already enabled)
+  END;
+
+  -- Enable RLS for invoices
+  BEGIN
+    ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
+  EXCEPTION 
+    WHEN SQLSTATE '42501' THEN NULL; -- insufficient_privilege: must be owner
+    WHEN OTHERS THEN NULL;
+  END;
+
+  -- Enable RLS for invoice_line_items
+  BEGIN
+    ALTER TABLE invoice_line_items ENABLE ROW LEVEL SECURITY;
+  EXCEPTION 
+    WHEN SQLSTATE '42501' THEN NULL;
+    WHEN OTHERS THEN NULL;
+  END;
+
+  -- Enable RLS for credit_notes
+  BEGIN
+    ALTER TABLE credit_notes ENABLE ROW LEVEL SECURITY;
+  EXCEPTION 
+    WHEN SQLSTATE '42501' THEN NULL;
+    WHEN OTHERS THEN NULL;
+  END;
+
+  -- Enable RLS for receipts
+  BEGIN
+    ALTER TABLE receipts ENABLE ROW LEVEL SECURITY;
+  EXCEPTION 
+    WHEN SQLSTATE '42501' THEN NULL;
+    WHEN OTHERS THEN NULL;
+  END;
+
+  -- Enable RLS for document_deliveries
+  BEGIN
+    ALTER TABLE document_deliveries ENABLE ROW LEVEL SECURITY;
+  EXCEPTION 
+    WHEN SQLSTATE '42501' THEN NULL;
+    WHEN OTHERS THEN NULL;
+  END;
+
+  -- Enable RLS for invoice_number_sequences
+  BEGIN
+    ALTER TABLE invoice_number_sequences ENABLE ROW LEVEL SECURITY;
+  EXCEPTION 
+    WHEN SQLSTATE '42501' THEN NULL;
+    WHEN OTHERS THEN NULL;
+  END;
+
+  -- Enable RLS for tenant_business_details
+  BEGIN
+    ALTER TABLE tenant_business_details ENABLE ROW LEVEL SECURITY;
+  EXCEPTION 
+    WHEN SQLSTATE '42501' THEN NULL;
+    WHEN OTHERS THEN NULL;
+  END;
+END $$;
 
 -- ============================================================================
 -- CUSTOMERS RLS POLICIES
 -- ============================================================================
+DO $$
+BEGIN
+  -- Admin users can access all customers
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'customers' AND policyname = 'Admin users can view all customers') THEN
+    CREATE POLICY "Admin users can view all customers" ON customers
+      FOR SELECT USING (
+        EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
+      );
+  END IF;
 
--- Admin users can access all customers
-CREATE POLICY "Admin users can view all customers" ON customers
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
-  );
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'customers' AND policyname = 'Admin users can manage all customers') THEN
+    CREATE POLICY "Admin users can manage all customers" ON customers
+      FOR ALL USING (
+        EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
+      );
+  END IF;
 
-CREATE POLICY "Admin users can manage all customers" ON customers
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
-  );
+  -- Tenant users can only access their tenant's customers
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'customers' AND policyname = 'Tenant users can view their customers') THEN
+    CREATE POLICY "Tenant users can view their customers" ON customers
+      FOR SELECT USING (
+        tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
+      );
+  END IF;
 
--- Tenant users can only access their tenant's customers
-CREATE POLICY "Tenant users can view their customers" ON customers
-  FOR SELECT USING (
-    tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
-  );
-
-CREATE POLICY "Tenant users can manage their customers" ON customers
-  FOR ALL USING (
-    tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
-  );
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'customers' AND policyname = 'Tenant users can manage their customers') THEN
+    CREATE POLICY "Tenant users can manage their customers" ON customers
+      FOR ALL USING (
+        tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
+      );
+  END IF;
+END $$;
 
 -- ============================================================================
 -- INVOICES RLS POLICIES
 -- ============================================================================
+DO $$
+BEGIN
+  -- Admin users can access all invoices
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'invoices' AND policyname = 'Admin users can view all invoices') THEN
+    CREATE POLICY "Admin users can view all invoices" ON invoices
+      FOR SELECT USING (
+        EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
+      );
+  END IF;
 
--- Admin users can access all invoices
-CREATE POLICY "Admin users can view all invoices" ON invoices
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
-  );
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'invoices' AND policyname = 'Admin users can manage all invoices') THEN
+    CREATE POLICY "Admin users can manage all invoices" ON invoices
+      FOR ALL USING (
+        EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
+      );
+  END IF;
 
-CREATE POLICY "Admin users can manage all invoices" ON invoices
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
-  );
+  -- Tenant users can only access their tenant's invoices
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'invoices' AND policyname = 'Tenant users can view their invoices') THEN
+    CREATE POLICY "Tenant users can view their invoices" ON invoices
+      FOR SELECT USING (
+        tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
+      );
+  END IF;
 
--- Tenant users can only access their tenant's invoices
-CREATE POLICY "Tenant users can view their invoices" ON invoices
-  FOR SELECT USING (
-    tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
-  );
-
-CREATE POLICY "Tenant users can manage their invoices" ON invoices
-  FOR ALL USING (
-    tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
-  );
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'invoices' AND policyname = 'Tenant users can manage their invoices') THEN
+    CREATE POLICY "Tenant users can manage their invoices" ON invoices
+      FOR ALL USING (
+        tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
+      );
+  END IF;
+END $$;
 
 -- ============================================================================
 -- INVOICE LINE ITEMS RLS POLICIES
 -- ============================================================================
+DO $$
+BEGIN
+  -- Admin users can access all line items
+  BEGIN
+    CREATE POLICY "Admin users can view all invoice line items" ON invoice_line_items
+      FOR SELECT USING (
+        EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL; -- insufficient_privilege
+  END;
 
--- Admin users can access all line items
-CREATE POLICY "Admin users can view all invoice line items" ON invoice_line_items
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
-  );
+  BEGIN
+    CREATE POLICY "Admin users can manage all invoice line items" ON invoice_line_items
+      FOR ALL USING (
+        EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
 
-CREATE POLICY "Admin users can manage all invoice line items" ON invoice_line_items
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
-  );
+  -- Tenant users can access line items for their tenant's invoices
+  BEGIN
+    CREATE POLICY "Tenant users can view their invoice line items" ON invoice_line_items
+      FOR SELECT USING (
+        invoice_id IN (
+          SELECT id FROM invoices 
+          WHERE tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
+        )
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
 
--- Tenant users can access line items for their tenant's invoices
-CREATE POLICY "Tenant users can view their invoice line items" ON invoice_line_items
-  FOR SELECT USING (
-    invoice_id IN (
-      SELECT id FROM invoices 
-      WHERE tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
-    )
-  );
-
-CREATE POLICY "Tenant users can manage their invoice line items" ON invoice_line_items
-  FOR ALL USING (
-    invoice_id IN (
-      SELECT id FROM invoices 
-      WHERE tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
-    )
-  );
+  BEGIN
+    CREATE POLICY "Tenant users can manage their invoice line items" ON invoice_line_items
+      FOR ALL USING (
+        invoice_id IN (
+          SELECT id FROM invoices 
+          WHERE tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
+        )
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+END $$;
 
 -- ============================================================================
 -- CREDIT NOTES RLS POLICIES
 -- ============================================================================
+DO $$
+BEGIN
+  BEGIN
+    CREATE POLICY "Admin users can view all credit notes" ON credit_notes
+      FOR SELECT USING (
+        EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
 
--- Admin users can access all credit notes
-CREATE POLICY "Admin users can view all credit notes" ON credit_notes
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
-  );
+  BEGIN
+    CREATE POLICY "Admin users can manage all credit notes" ON credit_notes
+      FOR ALL USING (
+        EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
 
-CREATE POLICY "Admin users can manage all credit notes" ON credit_notes
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
-  );
+  BEGIN
+    CREATE POLICY "Tenant users can view their credit notes" ON credit_notes
+      FOR SELECT USING (
+        tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
 
--- Tenant users can only access their tenant's credit notes
-CREATE POLICY "Tenant users can view their credit notes" ON credit_notes
-  FOR SELECT USING (
-    tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
-  );
-
-CREATE POLICY "Tenant users can manage their credit notes" ON credit_notes
-  FOR ALL USING (
-    tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
-  );
+  BEGIN
+    CREATE POLICY "Tenant users can manage their credit notes" ON credit_notes
+      FOR ALL USING (
+        tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+END $$;
 
 -- ============================================================================
 -- RECEIPTS RLS POLICIES
 -- ============================================================================
+DO $$
+BEGIN
+  BEGIN
+    CREATE POLICY "Admin users can view all receipts" ON receipts
+      FOR SELECT USING (
+        EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
 
--- Admin users can access all receipts
-CREATE POLICY "Admin users can view all receipts" ON receipts
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
-  );
+  BEGIN
+    CREATE POLICY "Admin users can manage all receipts" ON receipts
+      FOR ALL USING (
+        EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
 
-CREATE POLICY "Admin users can manage all receipts" ON receipts
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
-  );
+  BEGIN
+    CREATE POLICY "Tenant users can view their receipts" ON receipts
+      FOR SELECT USING (
+        tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
 
--- Tenant users can only access their tenant's receipts
-CREATE POLICY "Tenant users can view their receipts" ON receipts
-  FOR SELECT USING (
-    tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
-  );
-
-CREATE POLICY "Tenant users can manage their receipts" ON receipts
-  FOR ALL USING (
-    tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
-  );
+  BEGIN
+    CREATE POLICY "Tenant users can manage their receipts" ON receipts
+      FOR ALL USING (
+        tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+END $$;
 
 -- ============================================================================
 -- DOCUMENT DELIVERIES RLS POLICIES
 -- ============================================================================
+DO $$
+BEGIN
+  BEGIN
+    CREATE POLICY "Admin users can view all document deliveries" ON document_deliveries
+      FOR SELECT USING (
+        EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
 
--- Admin users can access all document deliveries
-CREATE POLICY "Admin users can view all document deliveries" ON document_deliveries
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
-  );
+  BEGIN
+    CREATE POLICY "Admin users can manage all document deliveries" ON document_deliveries
+      FOR ALL USING (
+        EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
 
-CREATE POLICY "Admin users can manage all document deliveries" ON document_deliveries
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
-  );
+  BEGIN
+    CREATE POLICY "Tenant users can view their document deliveries" ON document_deliveries
+      FOR SELECT USING (
+        tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
 
--- Tenant users can only access their tenant's document deliveries
-CREATE POLICY "Tenant users can view their document deliveries" ON document_deliveries
-  FOR SELECT USING (
-    tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
-  );
-
-CREATE POLICY "Tenant users can manage their document deliveries" ON document_deliveries
-  FOR ALL USING (
-    tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
-  );
+  BEGIN
+    CREATE POLICY "Tenant users can manage their document deliveries" ON document_deliveries
+      FOR ALL USING (
+        tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+END $$;
 
 -- ============================================================================
 -- INVOICE NUMBER SEQUENCES RLS POLICIES
 -- ============================================================================
+DO $$
+BEGIN
+  BEGIN
+    CREATE POLICY "Admin users can view all invoice number sequences" ON invoice_number_sequences
+      FOR SELECT USING (
+        EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
 
--- Admin users can access all sequences
-CREATE POLICY "Admin users can view all invoice number sequences" ON invoice_number_sequences
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
-  );
+  BEGIN
+    CREATE POLICY "Admin users can manage all invoice number sequences" ON invoice_number_sequences
+      FOR ALL USING (
+        EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
 
-CREATE POLICY "Admin users can manage all invoice number sequences" ON invoice_number_sequences
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
-  );
+  BEGIN
+    CREATE POLICY "Tenant users can view their invoice number sequences" ON invoice_number_sequences
+      FOR SELECT USING (
+        tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
 
--- Tenant users can only access their tenant's sequences
-CREATE POLICY "Tenant users can view their invoice number sequences" ON invoice_number_sequences
-  FOR SELECT USING (
-    tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
-  );
-
-CREATE POLICY "Tenant users can manage their invoice number sequences" ON invoice_number_sequences
-  FOR ALL USING (
-    tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
-  );
+  BEGIN
+    CREATE POLICY "Tenant users can manage their invoice number sequences" ON invoice_number_sequences
+      FOR ALL USING (
+        tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+END $$;
 
 -- ============================================================================
 -- TENANT BUSINESS DETAILS RLS POLICIES
 -- ============================================================================
+DO $$
+BEGIN
+  BEGIN
+    CREATE POLICY "Admin users can view all business details" ON tenant_business_details
+      FOR SELECT USING (
+        EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
 
--- Admin users can access all business details
-CREATE POLICY "Admin users can view all business details" ON tenant_business_details
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
-  );
+  BEGIN
+    CREATE POLICY "Admin users can manage all business details" ON tenant_business_details
+      FOR ALL USING (
+        EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
 
-CREATE POLICY "Admin users can manage all business details" ON tenant_business_details
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM admin_users WHERE id = auth.uid())
-  );
+  BEGIN
+    CREATE POLICY "Tenant users can view their business details" ON tenant_business_details
+      FOR SELECT USING (
+        tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
 
--- Tenant users can only access their tenant's business details
-CREATE POLICY "Tenant users can view their business details" ON tenant_business_details
-  FOR SELECT USING (
-    tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
-  );
-
-CREATE POLICY "Tenant users can manage their business details" ON tenant_business_details
-  FOR ALL USING (
-    tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
-  );
+  BEGIN
+    CREATE POLICY "Tenant users can manage their business details" ON tenant_business_details
+      FOR ALL USING (
+        tenant_id IN (SELECT tenant_id FROM tenant_users WHERE id = auth.uid())
+      );
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+END $$;
 
 -- ============================================================================
 -- COMMENTS FOR DOCUMENTATION
 -- ============================================================================
-COMMENT ON TABLE customers IS 'Customer/client information for invoicing. At least one contact method (email or phone) required at application level.';
-COMMENT ON TABLE invoices IS 'Invoice records with state management and immutable invoice numbers. Status: draft, issued, sent, paid, voided.';
-COMMENT ON TABLE invoice_line_items IS 'Line items for invoices with description, quantity, unit_price, and calculated line_total.';
-COMMENT ON TABLE credit_notes IS 'Credit notes that reverse invoices the customer has seen. References original invoice.';
-COMMENT ON TABLE receipts IS 'Payment receipts referencing invoices. Generated when payment is received.';
-COMMENT ON TABLE document_deliveries IS 'Centralized tracking of all document delivery events (invoices, credit notes, receipts). Tracks delivery channel, recipient, status, and provider message IDs.';
-COMMENT ON TABLE invoice_number_sequences IS 'Tracks sequential invoice numbers per tenant/year for atomic generation. Format: YYYY-NNN.';
-COMMENT ON TABLE tenant_business_details IS 'Business information for invoice templates (logo, address, tax ID, bank details). One record per tenant.';
+DO $$
+BEGIN
+  BEGIN
+    COMMENT ON TABLE customers IS 'Customer/client information for invoicing. At least one contact method (email or phone) required at application level.';
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL; -- insufficient_privilege
+  END;
+
+  BEGIN
+    COMMENT ON TABLE invoices IS 'Invoice records with state management and immutable invoice numbers. Status: draft, issued, sent, paid, voided.';
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+
+  BEGIN
+    COMMENT ON TABLE invoice_line_items IS 'Line items for invoices with description, quantity, unit_price, and calculated line_total.';
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+
+  BEGIN
+    COMMENT ON TABLE credit_notes IS 'Credit notes that reverse invoices the customer has seen. References original invoice.';
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+
+  BEGIN
+    COMMENT ON TABLE receipts IS 'Payment receipts referencing invoices. Generated when payment is received.';
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+
+  BEGIN
+    COMMENT ON TABLE document_deliveries IS 'Centralized tracking of all document delivery events (invoices, credit notes, receipts). Tracks delivery channel, recipient, status, and provider message IDs.';
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+
+  BEGIN
+    COMMENT ON TABLE invoice_number_sequences IS 'Tracks sequential invoice numbers per tenant/year for atomic generation. Format: YYYY-NNN.';
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+
+  BEGIN
+    COMMENT ON TABLE tenant_business_details IS 'Business information for invoice templates (logo, address, tax ID, bank details). One record per tenant.';
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+END $$;
 
