@@ -101,25 +101,25 @@ export async function GET(
     const pdfBuffer = await generateInvoicePDF(id, supabase)
 
     // Upload to storage (non-blocking - don't fail the request if upload fails)
-    generateAndUploadInvoicePDF(id, supabase)
-      .then((filePath) => {
+    ;(async () => {
+      try {
+        const filePath = await generateAndUploadInvoicePDF(id, supabase)
         if (filePath) {
           // Update invoice with file path
-          supabase
-            .from('invoices')
-            .update({ pdf_url: filePath })
-            .eq('id', id)
-            .then(() => {
-              console.log(`[PDF Endpoint] PDF path updated for invoice ${id}`)
-            })
-            .catch((error) => {
-              console.error(`[PDF Endpoint] Failed to update PDF path:`, error)
-            })
+          try {
+            await supabase
+              .from('invoices')
+              .update({ pdf_url: filePath })
+              .eq('id', id)
+            console.log(`[PDF Endpoint] PDF path updated for invoice ${id}`)
+          } catch (error) {
+            console.error(`[PDF Endpoint] Failed to update PDF path:`, error)
+          }
         }
-      })
-      .catch((error) => {
+      } catch (error) {
         console.error(`[PDF Endpoint] Failed to upload PDF:`, error)
-      })
+      }
+    })()
 
     // Return PDF with proper headers
     // Convert Buffer to Uint8Array for NextResponse compatibility
