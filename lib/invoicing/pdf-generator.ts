@@ -42,13 +42,37 @@ async function getLogoAsBase64(logoUrl: string | null | undefined): Promise<stri
 }
 
 /**
- * Formats currency amount
+ * Formats currency amount (without currency symbol)
  */
 function formatCurrency(amount: number, currency: string): string {
   return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount)
+}
+
+/**
+ * Gets currency symbol for display
+ */
+function getCurrencySymbol(currency: string): string {
+  const currencySymbols: Record<string, string> = {
+    USD: '$',
+    EUR: '€',
+    GBP: '£',
+    SGD: 'S$',
+    JPY: '¥',
+    CNY: '¥',
+    INR: '₹',
+    AUD: 'A$',
+    CAD: 'C$',
+    NZD: 'NZ$',
+    HKD: 'HK$',
+    CHF: 'CHF',
+    SEK: 'kr',
+    NOK: 'kr',
+    DKK: 'kr',
+  }
+  return currencySymbols[currency] || currency
 }
 
 /**
@@ -84,22 +108,25 @@ export async function generateInvoiceHTML(data: InvoiceData): Promise<string> {
   const statusConfig = statusColors[invoice.status] || statusColors.draft
   const statusLabel = invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)
 
-  // Compact business address (first line only)
-  const businessAddressLine = [
+  // Full business address
+  const businessAddressParts = [
     tenantBusinessDetails.address_line1,
+    tenantBusinessDetails.address_line2,
     tenantBusinessDetails.city && tenantBusinessDetails.state_province 
-      ? `${tenantBusinessDetails.city}, ${tenantBusinessDetails.state_province}`
+      ? `${tenantBusinessDetails.city}, ${tenantBusinessDetails.state_province} ${tenantBusinessDetails.postal_code || ''}`.trim()
       : tenantBusinessDetails.city || tenantBusinessDetails.state_province,
-  ].filter(Boolean).join(', ')
+    tenantBusinessDetails.country,
+  ].filter(Boolean)
 
-  // Compact customer address
-  const customerAddressLine = [
+  // Full customer address
+  const customerAddressParts = [
     customer.address_line1,
+    customer.address_line2,
     customer.city && customer.state_province 
-      ? `${customer.city}, ${customer.state_province}`
+      ? `${customer.city}, ${customer.state_province} ${customer.postal_code || ''}`.trim()
       : customer.city || customer.state_province,
-    customer.postal_code,
-  ].filter(Boolean).join(', ')
+    customer.country,
+  ].filter(Boolean)
 
   const html = `
 <!DOCTYPE html>
@@ -126,52 +153,60 @@ export async function generateInvoiceHTML(data: InvoiceData): Promise<string> {
       max-width: 800px;
       margin: 0 auto;
     }
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
+    .row-1 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
       margin-bottom: 20px;
       padding-bottom: 16px;
       border-bottom: 2px solid #e5e7eb;
     }
-    .header-left {
+    .row-1-left {
       display: flex;
-      align-items: center;
-      gap: 16px;
+      align-items: flex-start;
     }
     .logo {
-      max-width: 120px;
-      max-height: 60px;
+      max-width: 150px;
+      max-height: 80px;
       object-fit: contain;
     }
-    .business-header {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .business-name {
-      font-size: 20px;
-      font-weight: bold;
-      color: #111;
-    }
-    .business-compact {
-      font-size: 11px;
-      color: #666;
-      line-height: 1.4;
-    }
-    .invoice-header-right {
+    .row-1-right {
       text-align: right;
-    }
-    .invoice-title-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
     }
     .invoice-title {
       font-size: 24px;
       font-weight: bold;
       color: #111;
+      margin-bottom: 16px;
+    }
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 20px;
+    }
+    .business-details-section, .customer-details-section {
+      font-size: 12px;
+      line-height: 1.6;
+      color: #333;
+    }
+    .business-name, .customer-name {
+      font-size: 16px;
+      font-weight: bold;
+      color: #111;
+      margin-bottom: 8px;
+    }
+    .business-address, .customer-address {
+      color: #666;
+      margin-bottom: 6px;
+    }
+    .business-contact, .customer-contact {
+      color: #666;
+      margin-bottom: 6px;
+    }
+    .business-ids, .customer-ids {
+      color: #666;
+      margin-top: 6px;
     }
     .status-badge {
       display: inline-block;
@@ -185,14 +220,11 @@ export async function generateInvoiceHTML(data: InvoiceData): Promise<string> {
       color: ${statusConfig.text};
       border: 1px solid ${statusConfig.border};
     }
-    .details-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      margin-bottom: 20px;
+    .invoice-details-section {
+      text-align: right;
     }
     .info-section {
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
     .info-label {
       font-size: 10px;
@@ -207,16 +239,16 @@ export async function generateInvoiceHTML(data: InvoiceData): Promise<string> {
       color: #111;
       font-weight: 500;
     }
-    .section-title {
-      font-size: 14px;
-      font-weight: bold;
-      margin-bottom: 8px;
-      color: #111;
+    .status-section {
+      margin-top: 12px;
     }
-    .customer-address {
-      font-size: 12px;
+    .status-label-text {
+      font-size: 10px;
+      text-transform: uppercase;
       color: #666;
-      line-height: 1.5;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+      font-weight: 600;
     }
     table {
       width: 100%;
@@ -316,6 +348,14 @@ export async function generateInvoiceHTML(data: InvoiceData): Promise<string> {
       gap: 16px;
       margin-top: 16px;
     }
+    .currency-label {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #e5e7eb;
+      font-size: 11px;
+      color: #666;
+      font-style: italic;
+    }
     .voided-banner {
       background-color: #fee2e2;
       color: #991b1b;
@@ -337,51 +377,70 @@ export async function generateInvoiceHTML(data: InvoiceData): Promise<string> {
     </div>
     ` : ''}
     
-    <div class="header">
-      <div class="header-left">
+    <!-- Row 1: Logo (left) | Invoice Title + Details + Status (right) -->
+    <div class="row-1">
+      <div class="row-1-left">
         ${logoBase64 ? `<img src="${logoBase64}" alt="Logo" class="logo">` : ''}
-        <div class="business-header">
-          <div class="business-name">${tenantBusinessDetails.business_name || 'Business Name'}</div>
-          <div class="business-compact">
-            ${businessAddressLine ? `${businessAddressLine}<br>` : ''}
-            ${tenantBusinessDetails.phone || tenantBusinessDetails.email ? `${tenantBusinessDetails.phone || ''}${tenantBusinessDetails.phone && tenantBusinessDetails.email ? ' • ' : ''}${tenantBusinessDetails.email || ''}` : ''}
+      </div>
+      <div class="row-1-right">
+        <div class="invoice-title">INVOICE</div>
+        <div class="invoice-details-section">
+          <div class="info-section">
+            <div class="info-label">Invoice Number</div>
+            <div class="info-value">${invoice.invoice_number || 'Draft'}</div>
+          </div>
+          <div class="info-section">
+            <div class="info-label">Invoice Date</div>
+            <div class="info-value">${formatDate(invoice.invoice_date)}</div>
+          </div>
+          ${invoice.due_date ? `
+          <div class="info-section">
+            <div class="info-label">Due Date</div>
+            <div class="info-value">${formatDate(invoice.due_date)}</div>
+          </div>
+          ` : ''}
+          <div class="status-section">
+            <div class="status-label-text">Invoice Status</div>
+            <div class="status-badge">${statusLabel}</div>
           </div>
         </div>
       </div>
-      <div class="invoice-header-right">
-        <div class="status-badge">${statusLabel}</div>
-      </div>
     </div>
 
-    <div class="invoice-title-row">
-      <div class="invoice-title">INVOICE</div>
-    </div>
-
-    <div class="details-grid">
-      <div class="invoice-info">
-        <div class="info-section">
-          <div class="info-label">Invoice Number</div>
-          <div class="info-value">${invoice.invoice_number || 'Draft'}</div>
+    <!-- Row 2: Business Details (left) | Customer Details (right) -->
+    <div class="row-2">
+      <div class="business-details-section">
+        <div class="business-name">${tenantBusinessDetails.business_name || 'Business Name'}</div>
+        <div class="business-address">
+          ${businessAddressParts.map(part => `${part}`).join('<br>')}
         </div>
-        <div class="info-section">
-          <div class="info-label">Invoice Date</div>
-          <div class="info-value">${formatDate(invoice.invoice_date)}</div>
+        <div class="business-contact">
+          ${tenantBusinessDetails.phone ? `Phone: ${tenantBusinessDetails.phone}` : ''}
+          ${tenantBusinessDetails.phone && tenantBusinessDetails.email ? '<br>' : ''}
+          ${tenantBusinessDetails.email ? `Email: ${tenantBusinessDetails.email}` : ''}
+          ${(tenantBusinessDetails.phone || tenantBusinessDetails.email) && tenantBusinessDetails.website ? '<br>' : ''}
+          ${tenantBusinessDetails.website ? `Website: ${tenantBusinessDetails.website}` : ''}
         </div>
-        ${invoice.due_date ? `
-        <div class="info-section">
-          <div class="info-label">Due Date</div>
-          <div class="info-value">${formatDate(invoice.due_date)}</div>
+        <div class="business-ids">
+          ${tenantBusinessDetails.tax_id ? `Tax ID: ${tenantBusinessDetails.tax_id}` : ''}
+          ${tenantBusinessDetails.tax_id && tenantBusinessDetails.registration_number ? '<br>' : ''}
+          ${tenantBusinessDetails.registration_number ? `Registration: ${tenantBusinessDetails.registration_number}` : ''}
         </div>
-        ` : ''}
       </div>
 
-      <div class="customer-info">
-        <div class="section-title">Bill To:</div>
+      <div class="customer-details-section">
+        <div class="customer-name">Bill To:</div>
+        <div class="customer-name" style="margin-top: 0; margin-bottom: 8px;">${customer.name}</div>
         <div class="customer-address">
-          <strong>${customer.name}</strong><br>
-          ${customerAddressLine ? `${customerAddressLine}<br>` : ''}
-          ${customer.country ? `${customer.country}<br>` : ''}
-          ${customer.tax_id ? `<br>Tax ID: ${customer.tax_id}` : ''}
+          ${customerAddressParts.map(part => `${part}`).join('<br>')}
+        </div>
+        <div class="customer-contact">
+          ${customer.phone ? `Phone: ${customer.phone}` : ''}
+          ${customer.phone && customer.email ? '<br>' : ''}
+          ${customer.email ? `Email: ${customer.email}` : ''}
+        </div>
+        <div class="customer-ids">
+          ${customer.tax_id ? `Tax ID: ${customer.tax_id}` : ''}
         </div>
       </div>
     </div>
@@ -472,6 +531,10 @@ export async function generateInvoiceHTML(data: InvoiceData): Promise<string> {
         <div>${tenantBusinessDetails.notes}</div>
       </div>
       ` : ''}
+      
+      <div class="currency-label">
+        All amounts are in ${invoice.currency} (${getCurrencySymbol(invoice.currency)})
+      </div>
     </div>
   </div>
 </body>
