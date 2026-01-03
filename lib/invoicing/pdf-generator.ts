@@ -73,6 +73,34 @@ export async function generateInvoiceHTML(data: InvoiceData): Promise<string> {
   // Get logo as base64 if available
   const logoBase64 = data.logoBase64 || await getLogoAsBase64(tenantBusinessDetails.logo_url)
 
+  // Status badge colors
+  const statusColors: Record<string, { bg: string; text: string; border: string }> = {
+    draft: { bg: '#f3f4f6', text: '#374151', border: '#d1d5db' },
+    issued: { bg: '#dbeafe', text: '#1e40af', border: '#93c5fd' },
+    sent: { bg: '#fef3c7', text: '#92400e', border: '#fcd34d' },
+    paid: { bg: '#d1fae5', text: '#065f46', border: '#6ee7b7' },
+    voided: { bg: '#fee2e2', text: '#991b1b', border: '#fecaca' },
+  }
+  const statusConfig = statusColors[invoice.status] || statusColors.draft
+  const statusLabel = invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)
+
+  // Compact business address (first line only)
+  const businessAddressLine = [
+    tenantBusinessDetails.address_line1,
+    tenantBusinessDetails.city && tenantBusinessDetails.state_province 
+      ? `${tenantBusinessDetails.city}, ${tenantBusinessDetails.state_province}`
+      : tenantBusinessDetails.city || tenantBusinessDetails.state_province,
+  ].filter(Boolean).join(', ')
+
+  // Compact customer address
+  const customerAddressLine = [
+    customer.address_line1,
+    customer.city && customer.state_province 
+      ? `${customer.city}, ${customer.state_province}`
+      : customer.city || customer.state_province,
+    customer.postal_code,
+  ].filter(Boolean).join(', ')
+
   const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -88,10 +116,10 @@ export async function generateInvoiceHTML(data: InvoiceData): Promise<string> {
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      font-size: 14px;
-      line-height: 1.6;
+      font-size: 13px;
+      line-height: 1.5;
       color: #333;
-      padding: 40px;
+      padding: 24px;
       background: #fff;
     }
     .container {
@@ -102,132 +130,201 @@ export async function generateInvoiceHTML(data: InvoiceData): Promise<string> {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 40px;
-      padding-bottom: 20px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
       border-bottom: 2px solid #e5e7eb;
     }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
     .logo {
-      max-width: 150px;
-      max-height: 80px;
+      max-width: 120px;
+      max-height: 60px;
       object-fit: contain;
     }
-    .business-info {
-      text-align: right;
+    .business-header {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
     .business-name {
-      font-size: 24px;
+      font-size: 20px;
       font-weight: bold;
-      margin-bottom: 8px;
       color: #111;
     }
-    .business-details {
-      font-size: 12px;
+    .business-compact {
+      font-size: 11px;
       color: #666;
-      line-height: 1.8;
+      line-height: 1.4;
     }
-    .invoice-title {
-      font-size: 32px;
-      font-weight: bold;
-      margin-bottom: 40px;
-      color: #111;
+    .invoice-header-right {
+      text-align: right;
     }
-    .invoice-details {
+    .invoice-title-row {
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      margin-bottom: 40px;
-    }
-    .invoice-info, .customer-info {
-      flex: 1;
-    }
-    .info-section {
       margin-bottom: 20px;
     }
-    .info-label {
+    .invoice-title {
+      font-size: 24px;
+      font-weight: bold;
+      color: #111;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 4px;
       font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background-color: ${statusConfig.bg};
+      color: ${statusConfig.text};
+      border: 1px solid ${statusConfig.border};
+    }
+    .details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 20px;
+    }
+    .info-section {
+      margin-bottom: 12px;
+    }
+    .info-label {
+      font-size: 10px;
       text-transform: uppercase;
       color: #666;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
       letter-spacing: 0.5px;
+      font-weight: 600;
     }
     .info-value {
-      font-size: 14px;
+      font-size: 13px;
       color: #111;
       font-weight: 500;
     }
-    .customer-name {
-      font-size: 18px;
+    .section-title {
+      font-size: 14px;
       font-weight: bold;
       margin-bottom: 8px;
       color: #111;
+    }
+    .customer-address {
+      font-size: 12px;
+      color: #666;
+      line-height: 1.5;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 30px;
+      margin-bottom: 0;
     }
     thead {
       background-color: #f9fafb;
       border-bottom: 2px solid #e5e7eb;
     }
     th {
-      padding: 12px;
+      padding: 10px 8px;
       text-align: left;
-      font-size: 11px;
+      font-size: 10px;
       text-transform: uppercase;
       color: #666;
       font-weight: 600;
       letter-spacing: 0.5px;
     }
+    th:first-child {
+      padding-left: 12px;
+    }
+    th:last-child {
+      padding-right: 12px;
+    }
     td {
-      padding: 12px;
+      padding: 10px 8px;
       border-bottom: 1px solid #e5e7eb;
+      font-size: 13px;
+    }
+    td:first-child {
+      padding-left: 12px;
+    }
+    td:last-child {
+      padding-right: 12px;
     }
     .text-right {
       text-align: right;
     }
-    .totals {
-      margin-left: auto;
-      width: 300px;
-      margin-top: 20px;
+    tfoot {
+      background-color: #f9fafb;
+    }
+    tfoot td {
+      border-top: 2px solid #e5e7eb;
+      border-bottom: none;
+      padding: 12px 8px;
+      font-weight: 500;
+    }
+    tfoot td:first-child {
+      text-align: right;
+      padding-right: 12px;
+    }
+    tfoot td:last-child {
+      padding-right: 12px;
     }
     .total-row {
       display: flex;
       justify-content: space-between;
       padding: 8px 0;
-      font-size: 14px;
+      font-size: 13px;
     }
     .total-row.subtotal {
       border-top: 1px solid #e5e7eb;
       padding-top: 12px;
-      margin-top: 8px;
+      margin-top: 4px;
     }
     .total-row.tax {
       border-top: 1px solid #e5e7eb;
-      padding-top: 12px;
+      padding-top: 8px;
     }
     .total-row.total {
       border-top: 2px solid #111;
       padding-top: 12px;
       margin-top: 8px;
-      font-size: 18px;
+      font-size: 16px;
       font-weight: bold;
     }
     .footer {
-      margin-top: 60px;
-      padding-top: 20px;
+      margin-top: 32px;
+      padding-top: 16px;
       border-top: 1px solid #e5e7eb;
-      font-size: 12px;
+      font-size: 11px;
       color: #666;
-      line-height: 1.8;
+      line-height: 1.6;
+    }
+    .footer-section {
+      margin-bottom: 12px;
+    }
+    .footer-title {
+      font-weight: 600;
+      color: #111;
+      margin-bottom: 4px;
+    }
+    .payment-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
     }
     .voided-banner {
       background-color: #fee2e2;
       color: #991b1b;
-      padding: 16px;
+      padding: 12px;
       text-align: center;
       font-weight: bold;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
       border: 2px solid #fecaca;
+      font-size: 12px;
     }
   </style>
 </head>
@@ -241,26 +338,26 @@ export async function generateInvoiceHTML(data: InvoiceData): Promise<string> {
     ` : ''}
     
     <div class="header">
-      <div>
+      <div class="header-left">
         ${logoBase64 ? `<img src="${logoBase64}" alt="Logo" class="logo">` : ''}
-      </div>
-      <div class="business-info">
-        <div class="business-name">${tenantBusinessDetails.business_name || 'Business Name'}</div>
-        <div class="business-details">
-          ${tenantBusinessDetails.address_line1 ? `${tenantBusinessDetails.address_line1}<br>` : ''}
-          ${tenantBusinessDetails.address_line2 ? `${tenantBusinessDetails.address_line2}<br>` : ''}
-          ${tenantBusinessDetails.city && tenantBusinessDetails.state_province ? `${tenantBusinessDetails.city}, ${tenantBusinessDetails.state_province} ${tenantBusinessDetails.postal_code || ''}<br>` : ''}
-          ${tenantBusinessDetails.country ? `${tenantBusinessDetails.country}<br>` : ''}
-          ${tenantBusinessDetails.phone ? `<br>Phone: ${tenantBusinessDetails.phone}` : ''}
-          ${tenantBusinessDetails.email ? `<br>Email: ${tenantBusinessDetails.email}` : ''}
-          ${tenantBusinessDetails.tax_id ? `<br>Tax ID: ${tenantBusinessDetails.tax_id}` : ''}
+        <div class="business-header">
+          <div class="business-name">${tenantBusinessDetails.business_name || 'Business Name'}</div>
+          <div class="business-compact">
+            ${businessAddressLine ? `${businessAddressLine}<br>` : ''}
+            ${tenantBusinessDetails.phone || tenantBusinessDetails.email ? `${tenantBusinessDetails.phone || ''}${tenantBusinessDetails.phone && tenantBusinessDetails.email ? ' • ' : ''}${tenantBusinessDetails.email || ''}` : ''}
+          </div>
         </div>
+      </div>
+      <div class="invoice-header-right">
+        <div class="status-badge">${statusLabel}</div>
       </div>
     </div>
 
-    <div class="invoice-title">INVOICE</div>
+    <div class="invoice-title-row">
+      <div class="invoice-title">INVOICE</div>
+    </div>
 
-    <div class="invoice-details">
+    <div class="details-grid">
       <div class="invoice-info">
         <div class="info-section">
           <div class="info-label">Invoice Number</div>
@@ -279,12 +376,10 @@ export async function generateInvoiceHTML(data: InvoiceData): Promise<string> {
       </div>
 
       <div class="customer-info">
-        <div class="customer-name">Bill To:</div>
-        <div class="business-details">
-          ${customer.name}<br>
-          ${customer.address_line1 ? `${customer.address_line1}<br>` : ''}
-          ${customer.address_line2 ? `${customer.address_line2}<br>` : ''}
-          ${customer.city && customer.state_province ? `${customer.city}, ${customer.state_province} ${customer.postal_code || ''}<br>` : ''}
+        <div class="section-title">Bill To:</div>
+        <div class="customer-address">
+          <strong>${customer.name}</strong><br>
+          ${customerAddressLine ? `${customerAddressLine}<br>` : ''}
           ${customer.country ? `${customer.country}<br>` : ''}
           ${customer.tax_id ? `<br>Tax ID: ${customer.tax_id}` : ''}
         </div>
@@ -294,15 +389,17 @@ export async function generateInvoiceHTML(data: InvoiceData): Promise<string> {
     <table>
       <thead>
         <tr>
-          <th>Description</th>
-          <th class="text-right">Quantity</th>
-          <th class="text-right">Unit Price</th>
-          <th class="text-right">Total</th>
+          <th style="width: 5%;">#</th>
+          <th style="width: 45%;">Description</th>
+          <th class="text-right" style="width: 12%;">Quantity</th>
+          <th class="text-right" style="width: 18%;">Unit Price</th>
+          <th class="text-right" style="width: 20%;">Total</th>
         </tr>
       </thead>
       <tbody>
-        ${lineItems.map(item => `
+        ${lineItems.map((item, index) => `
         <tr>
+          <td>${index + 1}</td>
           <td>${item.description}</td>
           <td class="text-right">${item.quantity}</td>
           <td class="text-right">${formatCurrency(item.unit_price, invoice.currency)}</td>
@@ -310,31 +407,72 @@ export async function generateInvoiceHTML(data: InvoiceData): Promise<string> {
         </tr>
         `).join('')}
       </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3"></td>
+          <td class="text-right"><strong>Subtotal</strong></td>
+          <td class="text-right"><strong>${formatCurrency(invoice.subtotal, invoice.currency)}</strong></td>
+        </tr>
+        ${invoice.tax_amount > 0 ? `
+        <tr>
+          <td colspan="3"></td>
+          <td class="text-right"><strong>Tax</strong></td>
+          <td class="text-right"><strong>${formatCurrency(invoice.tax_amount, invoice.currency)}</strong></td>
+        </tr>
+        ` : ''}
+        <tr>
+          <td colspan="3"></td>
+          <td class="text-right" style="font-size: 15px; padding-top: 16px;"><strong>Total</strong></td>
+          <td class="text-right" style="font-size: 15px; padding-top: 16px;"><strong>${formatCurrency(invoice.total_amount, invoice.currency)}</strong></td>
+        </tr>
+      </tfoot>
     </table>
 
-    <div class="totals">
-      <div class="total-row subtotal">
-        <span>Subtotal</span>
-        <span>${formatCurrency(invoice.subtotal, invoice.currency)}</span>
-      </div>
-      ${invoice.tax_amount > 0 ? `
-      <div class="total-row tax">
-        <span>Tax</span>
-        <span>${formatCurrency(invoice.tax_amount, invoice.currency)}</span>
+    <div class="footer">
+      ${invoice.terms ? `
+      <div class="footer-section">
+        <div class="footer-title">Payment Terms</div>
+        <div>${invoice.terms}</div>
       </div>
       ` : ''}
-      <div class="total-row total">
-        <span>Total</span>
-        <span>${formatCurrency(invoice.total_amount, invoice.currency)}</span>
+      
+      ${tenantBusinessDetails.bank_name || tenantBusinessDetails.bank_account_number ? `
+      <div class="footer-section">
+        <div class="footer-title">Payment Instructions</div>
+        <div class="payment-details">
+          ${tenantBusinessDetails.bank_name ? `
+          <div>
+            <strong>Bank:</strong> ${tenantBusinessDetails.bank_name}<br>
+            ${tenantBusinessDetails.bank_account_number ? `<strong>Account:</strong> ${tenantBusinessDetails.bank_account_number}<br>` : ''}
+            ${tenantBusinessDetails.bank_routing_number ? `<strong>Routing:</strong> ${tenantBusinessDetails.bank_routing_number}` : ''}
+          </div>
+          ` : ''}
+          ${tenantBusinessDetails.email || tenantBusinessDetails.phone ? `
+          <div>
+            ${tenantBusinessDetails.email ? `<strong>Email:</strong> ${tenantBusinessDetails.email}<br>` : ''}
+            ${tenantBusinessDetails.phone ? `<strong>Phone:</strong> ${tenantBusinessDetails.phone}` : ''}
+          </div>
+          ` : ''}
+        </div>
       </div>
+      ` : ''}
+      
+      ${tenantBusinessDetails.tax_id || tenantBusinessDetails.registration_number ? `
+      <div class="footer-section">
+        <div>
+          ${tenantBusinessDetails.tax_id ? `<strong>Tax ID:</strong> ${tenantBusinessDetails.tax_id}` : ''}
+          ${tenantBusinessDetails.tax_id && tenantBusinessDetails.registration_number ? ' • ' : ''}
+          ${tenantBusinessDetails.registration_number ? `<strong>Registration:</strong> ${tenantBusinessDetails.registration_number}` : ''}
+        </div>
+      </div>
+      ` : ''}
+      
+      ${tenantBusinessDetails.notes ? `
+      <div class="footer-section">
+        <div>${tenantBusinessDetails.notes}</div>
+      </div>
+      ` : ''}
     </div>
-
-    ${invoice.terms || tenantBusinessDetails.notes ? `
-    <div class="footer">
-      ${invoice.terms ? `<div style="margin-bottom: 12px;"><strong>Payment Terms:</strong><br>${invoice.terms}</div>` : ''}
-      ${tenantBusinessDetails.notes ? `<div>${tenantBusinessDetails.notes}</div>` : ''}
-    </div>
-    ` : ''}
   </div>
 </body>
 </html>
